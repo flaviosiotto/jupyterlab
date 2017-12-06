@@ -26,7 +26,7 @@ import {
 } from '@jupyterlab/launcher';
 
 import {
-  IMainMenu, IEditMenu, IFileMenu, IKernelMenu, IRunMenu, IViewMenu
+  IMainMenu, IEditMenu, IFileMenu, IHelpMenu, IKernelMenu, IRunMenu, IViewMenu
 } from '@jupyterlab/mainmenu';
 
 import {
@@ -224,7 +224,7 @@ namespace CommandIDs {
 /**
  * The class name for the notebook icon from the default theme.
  */
-const NOTEBOOK_ICON_CLASS = 'jp-NotebookRunningIcon';
+const NOTEBOOK_ICON_CLASS = 'jp-NotebookIcon';
 
 /**
  * The name of the factory that creates notebooks.
@@ -457,7 +457,7 @@ function activateNotebookHandler(app: JupyterLab, mainMenu: IMainMenu, palette: 
           displayName,
           category: 'Notebook',
           name,
-          iconClass: 'jp-NotebookRunningIcon',
+          iconClass: 'jp-NotebookIcon',
           callback: createNew,
           rank,
           kernelIconUrl
@@ -1441,4 +1441,10 @@ function populateMenus(app: JupyterLab, mainMenu: IMainMenu, tracker: INotebookT
   ].map(command => { return { command }; });
   mainMenu.editMenu.addGroup(undoCellActionGroup, 4);
   mainMenu.editMenu.addGroup(editGroup, 5);
+
+  // Add kernel information to the application help menu.
+  mainMenu.helpMenu.kernelUsers.add({
+    tracker,
+    getKernel: current => current.session.kernel
+  } as IHelpMenu.IKernelUser<NotebookPanel>);
 }

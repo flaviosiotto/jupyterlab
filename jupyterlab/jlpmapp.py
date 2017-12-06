@@ -14,7 +14,7 @@ except ImportError:
     import subprocess
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-YARN_PATH = os.path.join(HERE, 'yarn.js')
+YARN_PATH = os.path.join(HERE, 'staging', 'yarn.js')
 
 
 def execvp(cmd, argv):
@@ -54,8 +54,8 @@ def which(command, env=None):
     path = env.get('PATH') or os.defpath
     command_with_path = _which(command, path=path)
     if command_with_path is None:
-        if command == 'node':
-            msg = 'Please install nodejs using conda or the nodejs website'
+        if command in ['node', 'npm']:
+            msg = 'Please install nodejs and npm before continuing installation. nodejs may be installed using conda or directly from the website.'
             raise ValueError(msg)
         raise ValueError('The command was not found or was not ' +
                 'executable: %s.' % command)
