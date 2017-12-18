@@ -9,13 +9,15 @@ import os
 import sys
 import traceback
 
+from copy import copy
+
 from jupyter_core.application import JupyterApp, base_flags, base_aliases
 
 from traitlets import Bool, Unicode
 
 from .commands import (
     install_extension, uninstall_extension, list_extensions,
-    enable_extension, disable_extension,
+    enable_extension, disable_extension, check_extension,
     link_package, unlink_package, build, get_app_version
 )
 
@@ -30,6 +32,11 @@ flags['clean'] = (
     "Cleanup intermediate files after the action."
 )
 
+check_flags = copy(flags)
+check_flags['installed'] = (
+    {'CheckLabExtensionsApp': {'should_check_installed_only': True}},
+    "Check only if the extension is installed."
+)
 aliases = dict(base_aliases)
 aliases['app-dir'] = 'BaseExtensionApp.app_dir'
 
@@ -58,7 +65,8 @@ class BaseExtensionApp(JupyterApp):
             msg = traceback.format_exception(ex.__class__, ex, exc_traceback)
             for line in msg:
                 self.log.debug(line)
-            self.log.error(str(ex))
+            self.log.error('\nErrored, use --debug for full output:')
+            self.log.error(msg[-1].strip())
             sys.exit(1)
 
     def run_task(self):
@@ -156,6 +164,24 @@ class DisableLabExtensionsApp(BaseExtensionApp):
          for arg in self.extra_args]
 
 
+class CheckLabExtensionsApp(BaseExtensionApp):
+    description = "Check labextension(s) by name"
+    flags = check_flags
+
+    should_check_installed_only = Bool(False, config=True,
+        help="Whether it should check only if the extensions is installed")
+
+    def run_task(self):
+        all_enabled = all(
+            check_extension(
+                arg, self.app_dir,
+                self.should_check_installed_only,
+                logger=self.log)
+            for arg in self.extra_args)
+        if not all_enabled:
+            exit(1)
+
+
 _examples = """
 jupyter labextension list                        # list all configured labextensions
 jupyter labextension install <extension name>    # install a labextension
@@ -178,6 +204,7 @@ class LabExtensionApp(JupyterApp):
         unlink=(UnlinkLabExtensionApp, "Unlink labextension(s)"),
         enable=(EnableLabExtensionsApp, "Enable labextension(s)"),
         disable=(DisableLabExtensionsApp, "Disable labextension(s)"),
+        check=(CheckLabExtensionsApp, "Check labextension(s)"),
     )
 
     def start(self):

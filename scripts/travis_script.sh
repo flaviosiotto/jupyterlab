@@ -24,7 +24,6 @@ if [[ $GROUP == js ]]; then
 
     # Allow the tests to fail once due to slow CI.
     jlpm test || jlpm test
-    jlpm run test:services || jlpm run test:services
     jlpm run clean
 fi
 
@@ -46,6 +45,16 @@ if [[ $GROUP == js_cov ]]; then
 fi
 
 
+if [[ $GROUP == js_services ]]; then
+
+    jlpm build:packages
+    jlpm build:test
+
+    # Allow the tests to fail once due to slow CI. 
+    jlpm run test:services || jlpm run test:services
+
+fi
+
 if [[ $GROUP == docs ]]; then
 
     # Run the link check - allow for a link to fail once
@@ -66,11 +75,20 @@ fi
 
 
 if [[ $GROUP == integrity ]]; then
+    # Run the integrity script first
+    jlpm run integrity
+
+    # Lint our JavaScript files.
+    ./node_modules/.bin/eslint .
+
     # Build the packages individually.
     jlpm run build:src
 
     # Make sure the examples build
     jlpm run build:examples
+
+    # Run a tslint check
+    ./node_modules/.bin/tslint -c tslint.json -e '**/*.d.ts' -e 'node_modules/**/*.ts' -e 'jupyterlab/**/*.ts' '**/*.ts'
 
     # Make sure we have CSS that can be converted with postcss
     jlpm global add postcss-cli
@@ -92,6 +110,8 @@ if [[ $GROUP == integrity ]]; then
     source activate test_install
     pip install ".[test]"  # this populates <sys_prefix>/share/jupyter/lab
     python -m jupyterlab.selenium_check
+    # Make sure we can run the build
+    jupyter lab build
 
     # Make sure we can start and kill the lab server
     jupyter lab --no-browser &
@@ -150,5 +170,17 @@ if [[ $GROUP == cli ]]; then
     jlpm run remove:dependency mocha
     jlpm run get:dependency @jupyterlab/buildutils
     jlpm run get:dependency typescript
-    jlpm run get:dependency react-native 
+    jlpm run get:dependency react-native
+
+    # Test theme creation - make sure we can add it as a package, build,
+    # and run selenium
+    pip install pexpect
+    python scripts/create_theme.py
+    mv foo packages
+    jlpm run integrity || exit 0
+    jlpm run build:packages
+    jlpm run build:dev
+    python -m jupyterlab.selenium_check --dev-mode
+    rm -rf packages/foo
+    jlpm run integrity || exit 0
 fi

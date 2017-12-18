@@ -35,7 +35,7 @@ import {
 } from '@jupyterlab/codeeditor';
 
 import {
-  IChangedArgs
+  IChangedArgs, PathExt
 } from '@jupyterlab/coreutils';
 
 import {
@@ -43,7 +43,7 @@ import {
 } from '@jupyterlab/docregistry';
 
 import {
-  RenderMime
+  RenderMimeRegistry
 } from '@jupyterlab/rendermime';
 
 import {
@@ -146,7 +146,7 @@ class NotebookPanel extends Widget implements DocumentRegistry.IReadyWidget {
   /**
    * The Rendermime instance used by the widget.
    */
-  readonly rendermime: RenderMime;
+  readonly rendermime: RenderMimeRegistry;
 
   /**
    * The notebook used by the widget.
@@ -284,7 +284,7 @@ class NotebookPanel extends Widget implements DocumentRegistry.IReadyWidget {
    * Handle a change to the document path.
    */
   protected onPathChanged(sender: DocumentRegistry.IContext<INotebookModel>, path: string): void {
-    this.title.label = path.split('/').pop();
+    this.title.label = PathExt.basename(sender.localPath);
   }
 
   /**
@@ -401,7 +401,7 @@ export namespace NotebookPanel {
     /**
      * The rendermime instance used by the panel.
      */
-    rendermime: RenderMime;
+    rendermime: RenderMimeRegistry;
 
     /**
      * The language preference for the model.

@@ -28,6 +28,7 @@ let UNUSED: { [key: string]: string[] } = {
   '@jupyterlab/apputils-extension': ['es6-promise'],
   '@jupyterlab/theme-dark-extension': ['font-awesome'],
   '@jupyterlab/theme-light-extension': ['font-awesome'],
+  '@jupyterlab/services': ['node-fetch', 'ws'],
   '@jupyterlab/vega2-extension': ['d3', 'vega', 'vega-lite']
 };
 
@@ -75,7 +76,7 @@ function ensureMetaPackage(): string[] {
     if (index.indexOf(name) === -1) {
       valid = false;
     }
-    lines.push(`import "${name}";`);
+    lines.push('import \'' + name + '\';');
 
     if (!valid) {
       messages.push(`Updated: ${name}`);
@@ -94,10 +95,10 @@ function ensureMetaPackage(): string[] {
   if (messages.length > 0) {
     utils.writePackageData(metaPackageJson, metaPackageData);
   }
-  let newIndex = lines.join('\n');
+  let newIndex = lines.join('\n') + '\n';
   if (newIndex !== index) {
     messages.push('Index changed');
-    fs.writeFileSync(indexPath, lines.join('\n'));
+    fs.writeFileSync(indexPath, lines.join('\n') + '\n');
   }
 
   return messages;

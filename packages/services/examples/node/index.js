@@ -6,29 +6,17 @@
 'use strict';
 
 var services = require('@jupyterlab/services');
-var ws = require('ws');
-var xhr = require('xmlhttprequest');
 
-
-// Set the request and socket functions.
-var serverSettings = services.ServerConnection.makeSettings({
-  xhrFactory: function () { return new xhr.XMLHttpRequest(); },
-  wsFactory: function (url, protocol) { return new ws(url, protocol); }
-});
 
 // Start a new session.
-
 var options = {
   kernelName: 'python',
-  path: 'foo.ipynb',
-  serverSettings: serverSettings
-}
+  path: 'foo.ipynb'
+};
 
-
-var session;
-
-
+/* eslint-disable no-console */
 console.log('Starting session...');
+var session;
 services.Session.startNew(options).then(function(s) {
   // Rename the session.
   session = s;
@@ -38,8 +26,8 @@ services.Session.startNew(options).then(function(s) {
   // Execute and handle replies on the kernel.
   var future = session.kernel.requestExecute({ code: 'a = 1' });
   future.onReply = function(reply) {
-    console.log('Got execute reply');
-  }
+    console.log('Got execute reply', reply);
+  };
   return future.done;
 }).then(function() {
   console.log('Future is fulfilled');
@@ -51,5 +39,4 @@ services.Session.startNew(options).then(function(s) {
 }).catch(function(err) {
   console.error(err);
   process.exit(1);
-})
-
+});

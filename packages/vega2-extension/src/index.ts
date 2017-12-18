@@ -18,6 +18,7 @@ import {
 /**
  * Import vega-embed in this manner due to how it is exported.
  */
+// Import only the typings for vega-embed - do not use for values.
 import embed = require('vega-embed');
 
 
@@ -99,15 +100,33 @@ class RenderedVega extends Widget implements IRenderMime.IRenderer {
       spec: updatedData
     };
 
-    return new Promise<void>((resolve, reject) => {
-      embed(this.node, embedSpec, (error: any, result: any): any => {
-        resolve(undefined);
-        // This is copied out for now as there is a bug in JupyterLab
-        // that triggers and infinite rendering loop when this is done.
-        // let imageData = result.view.toImageURL();
-        // imageData = imageData.split(',')[1];
-        // this._injector('image/png', imageData);
+    return this._ensureMod().then(embedFunc => {
+      return new Promise<void>((resolve, reject) => {
+        embedFunc(this.node, embedSpec, (error: any, result: any): any => {
+          resolve(undefined);
+          // This is copied out for now as there is a bug in JupyterLab
+          // that triggers and infinite rendering loop when this is done.
+          // let imageData = result.view.toImageURL();
+          // imageData = imageData.split(',')[1];
+          // this._injector('image/png', imageData);
+        });
       });
+    });
+  }
+
+  /**
+   * Initialize the vega-embed module.
+   */
+  private _ensureMod(): Promise<typeof embed> {
+    return new Promise((resolve, reject) => {
+      (require as any).ensure(['vega-embed'], (require: NodeRequire) => {
+        resolve(require('vega-embed'));
+      },
+      (err: any) => {
+        reject(err);
+      },
+      'vega2'
+      );
     });
   }
 
@@ -123,13 +142,13 @@ export
 const rendererFactory: IRenderMime.IRendererFactory = {
   safe: true,
   mimeTypes: [VEGA_MIME_TYPE, VEGALITE_MIME_TYPE],
+  defaultRank: 60,
   createRenderer: options => new RenderedVega(options)
 };
 
 const extension: IRenderMime.IExtension = {
   id: '@jupyterlab/vega2-extension:factory',
   rendererFactory,
-  rank: 0,
   dataType: 'json',
   documentWidgetFactoryOptions: [{
     name: 'Vega',
@@ -148,6 +167,7 @@ const extension: IRenderMime.IExtension = {
   fileTypes: [{
     mimeTypes: [VEGA_MIME_TYPE],
     name: 'vega',
+    displayName: 'Vega File',
     fileFormat: 'text',
     extensions: ['.vg', '.vg.json'],
     iconClass: 'jp-MaterialIcon jp-VegaIcon',
@@ -155,6 +175,7 @@ const extension: IRenderMime.IExtension = {
   {
     mimeTypes: [VEGALITE_MIME_TYPE],
     name: 'vega-lite',
+    displayName: 'Vega-Lite File',
     fileFormat: 'text',
     extensions: ['.vl', '.vl.json'],
     iconClass: 'jp-MaterialIcon jp-VegaIcon',

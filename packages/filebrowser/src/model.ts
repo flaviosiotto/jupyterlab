@@ -189,7 +189,8 @@ class FileBrowserModel implements IDisposable {
    */
   cd(newValue = '.'): Promise<void> {
     if (newValue !== '.') {
-      newValue = Private.normalizePath(this._model.path, newValue);
+      newValue = Private.normalizePath(this.manager.services.contents,
+                                       this._model.path, newValue);
     } else {
       newValue = this._pendingPath || this._model.path;
     }
@@ -208,6 +209,7 @@ class FileBrowserModel implements IDisposable {
       if (this.isDisposed) {
         return;
       }
+      this._refreshDuration = REFRESH_DURATION;
       this._handleContents(contents);
       this._pendingPath = null;
       if (oldValue !== newValue) {
@@ -230,6 +232,9 @@ class FileBrowserModel implements IDisposable {
         error.message = `Directory not found: "${this._model.path}"`;
         this._connectionFailure.emit(error);
         this.cd('/');
+      } else {
+        this._refreshDuration = REFRESH_DURATION * 10;
+        this._connectionFailure.emit(error);
       }
     });
     return this._pending;
@@ -283,7 +288,7 @@ class FileBrowserModel implements IDisposable {
       }
 
       const path = (cwd as ReadonlyJSONObject)['path'] as string;
-      const localPath = path.split(':').pop();
+      const localPath = manager.services.contents.localPath(path);
       return manager.services.contents.get(path)
         .then(() => this.cd(localPath))
         .catch(() => state.remove(key));
@@ -437,7 +442,7 @@ class FileBrowserModel implements IDisposable {
         return;
       }
       let date = new Date().getTime();
-      if ((date - this._lastRefresh) > REFRESH_DURATION) {
+      if ((date - this._lastRefresh) > this._refreshDuration) {
         this.refresh();
       }
     }, MIN_REFRESH);
@@ -471,6 +476,7 @@ class FileBrowserModel implements IDisposable {
   private _sessions: Session.IModel[] = [];
   private _state: IStateDB | null = null;
   private _timeoutId = -1;
+  private _refreshDuration = REFRESH_DURATION;
   private _driveName: string;
   private _isDisposed = false;
   private _restored = new PromiseDelegate<void>();
@@ -538,13 +544,10 @@ namespace Private {
    * Normalize a path based on a root directory, accounting for relative paths.
    */
   export
-  function normalizePath(root: string, path: string): string {
-    let parts = root.split(':');
-    if (parts.length === 1) {
-      return PathExt.resolve(root, path);
-    } else {
-      let resolved = PathExt.resolve(parts[1], path);
-      return parts[0] + ':' + resolved;
-    }
+  function normalizePath(contents: Contents.IManager, root: string, path: string): string {
+    const driveName = contents.driveName(root);
+    const localPath = contents.localPath(root);
+    const resolved = PathExt.resolve(localPath, path);
+    return driveName ? `${driveName}:${resolved}` : resolved;
   }
 }

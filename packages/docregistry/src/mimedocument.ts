@@ -18,7 +18,7 @@ import {
 } from '@jupyterlab/coreutils';
 
 import {
-  IRenderMime, RenderMime, MimeModel
+  IRenderMime, RenderMimeRegistry, MimeModel
 } from '@jupyterlab/rendermime';
 
 import {
@@ -48,7 +48,6 @@ class MimeDocument extends Widget implements DocumentRegistry.IReadyWidget {
     layout.addWidget(toolbar);
     BoxLayout.setStretch(toolbar, 0);
     let context = options.context;
-    this.title.label = PathExt.basename(context.path);
     this.rendermime = options.rendermime.clone({ resolver: context });
 
     this._context = context;
@@ -60,6 +59,7 @@ class MimeDocument extends Widget implements DocumentRegistry.IReadyWidget {
     BoxLayout.setStretch(this._renderer, 1);
 
     context.pathChanged.connect(this._onPathChanged, this);
+    this._onPathChanged();
 
     this._context.ready.then(() => {
       if (this.isDisposed) {
@@ -88,7 +88,7 @@ class MimeDocument extends Widget implements DocumentRegistry.IReadyWidget {
   /**
    * The rendermime instance associated with the widget.
    */
-  readonly rendermime: RenderMime;
+  readonly rendermime: RenderMimeRegistry;
 
   /**
    * A promise that resolves when the widget is ready.
@@ -161,7 +161,7 @@ class MimeDocument extends Widget implements DocumentRegistry.IReadyWidget {
    * Handle a path change.
    */
   private _onPathChanged(): void {
-    this.title.label = PathExt.basename(this._context.path);
+    this.title.label = PathExt.basename(this._context.localPath);
   }
 
   /**
@@ -207,7 +207,7 @@ namespace MimeDocument {
     /**
      * The rendermime instance.
      */
-    rendermime: RenderMime;
+    rendermime: RenderMimeRegistry;
 
     /**
      * The mime type.
@@ -262,7 +262,7 @@ class MimeDocumentFactory extends ABCWidgetFactory<MimeDocument, DocumentRegistr
     return widget;
   }
 
-  private _rendermime: RenderMime;
+  private _rendermime: RenderMimeRegistry;
   private _renderTimeout: number;
   private _dataType: 'string' | 'json';
   private _fileType: DocumentRegistry.IFileType;
@@ -287,7 +287,7 @@ namespace MimeDocumentFactory {
     /**
      * The rendermime instance.
      */
-    rendermime: RenderMime;
+    rendermime: RenderMimeRegistry;
 
     /**
      * The render timeout.

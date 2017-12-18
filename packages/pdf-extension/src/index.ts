@@ -77,6 +77,7 @@ export
 const rendererFactory: IRenderMime.IRendererFactory = {
   safe: false,
   mimeTypes: [MIME_TYPE],
+  defaultRank: 75,
   createRenderer: options => new RenderedPDF()
 };
 
@@ -85,10 +86,10 @@ const extensions: IRenderMime.IExtension | IRenderMime.IExtension[] = [
   {
     id: '@jupyterlab/pdf-extension:factory',
     rendererFactory,
-    rank: 0,
     dataType: 'string',
     fileTypes: [{
       name: 'PDF',
+      displayName: 'PDF',
       fileFormat: 'base64',
       mimeTypes: [MIME_TYPE],
       extensions: ['.pdf']
@@ -153,7 +154,6 @@ namespace Private {
       byteArrays.push(byteArray);
     }
 
-    var blob = new Blob(byteArrays, {type: contentType});
-    return blob;
+    return new Blob(byteArrays, {type: contentType});
   }
 }

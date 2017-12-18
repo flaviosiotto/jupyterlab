@@ -56,7 +56,7 @@ import {
 } from '@jupyterlab/observables';
 
 import {
-  RenderMime
+  RenderMimeRegistry
 } from '@jupyterlab/rendermime';
 
 import {
@@ -224,7 +224,7 @@ class StaticNotebook extends Widget {
   /**
    * The Rendermime instance used by the widget.
    */
-  readonly rendermime: RenderMime;
+  readonly rendermime: RenderMimeRegistry;
 
   /**
    * The model for the widget.
@@ -541,7 +541,7 @@ namespace StaticNotebook {
     /**
      * The rendermime instance used by the widget.
      */
-    rendermime: RenderMime;
+    rendermime: RenderMimeRegistry;
 
     /**
      * The language preference for the model.
@@ -843,6 +843,7 @@ class Notebook extends StaticNotebook {
     }
     // Make sure we have a valid active cell.
     this.activeCellIndex = this.activeCellIndex;
+    this.update();
   }
 
   /**
@@ -1276,7 +1277,7 @@ class Notebook extends StaticNotebook {
       event.dropAction = 'move';
       let toMove: Cell[] = event.mimeData.getData('internal:cells');
 
-      //Compute the to/from indices for the move.
+      // Compute the to/from indices for the move.
       let fromIndex = ArrayExt.firstIndexOf(this.widgets, toMove[0]);
       let toIndex = this._findCell(target);
       // This check is needed for consistency with the view.
@@ -1288,18 +1289,18 @@ class Notebook extends StaticNotebook {
         // set it to move the cells to the end of the notebook.
         toIndex = this.widgets.length - 1;
       }
-      //Don't move if we are within the block of selected cells.
+      // Don't move if we are within the block of selected cells.
       if (toIndex >= fromIndex && toIndex < fromIndex + toMove.length) {
         return;
       }
       // Move the cells one by one
       this.model.cells.beginCompoundOperation();
       if (fromIndex < toIndex) {
-        each(toMove, (cellWidget)=> {
+        each(toMove, (cellWidget) => {
           this.model.cells.move(fromIndex, toIndex);
         });
       } else if (fromIndex > toIndex) {
-        each(toMove, (cellWidget)=> {
+        each(toMove, (cellWidget) => {
           this.model.cells.move(fromIndex++, toIndex++);
         });
       }
@@ -1365,13 +1366,12 @@ class Notebook extends StaticNotebook {
       if (executionCount) {
         countString = executionCount.toString();
       }
-    }
-    else {
+    } else {
       countString = '';
     }
 
     // Create the drag image.
-    dragImage = Private.createDragImage(selected.length, countString, activeCell.model.value.text.split('\n')[0].slice(0,26));
+    dragImage = Private.createDragImage(selected.length, countString, activeCell.model.value.text.split('\n')[0].slice(0, 26));
 
     // Set up the drag event.
     this._drag = new Drag({
@@ -1589,9 +1589,9 @@ namespace Private {
         return VirtualDOM.realize(
           h.div(
             h.div({className: DRAG_IMAGE_CLASS},
-              h.span({className: CELL_DRAG_PROMPT_CLASS}, "In [" + promptNumber + "]:"),
+              h.span({className: CELL_DRAG_PROMPT_CLASS}, 'In [' + promptNumber + ']:'),
               h.span({className: CELL_DRAG_CONTENT_CLASS}, cellContent)),
-            h.div({className: CELL_DRAG_MULTIPLE_BACK}, "")
+            h.div({className: CELL_DRAG_MULTIPLE_BACK}, '')
           )
         );
       } else {
@@ -1600,7 +1600,7 @@ namespace Private {
             h.div({className: DRAG_IMAGE_CLASS},
               h.span({className: CELL_DRAG_PROMPT_CLASS}),
               h.span({className: CELL_DRAG_CONTENT_CLASS}, cellContent)),
-            h.div({className: CELL_DRAG_MULTIPLE_BACK}, "")
+            h.div({className: CELL_DRAG_MULTIPLE_BACK}, '')
           )
         );
       }
@@ -1609,7 +1609,7 @@ namespace Private {
         return VirtualDOM.realize(
           h.div(
             h.div({className: `${DRAG_IMAGE_CLASS} ${SINGLE_DRAG_IMAGE_CLASS}`},
-              h.span({className: CELL_DRAG_PROMPT_CLASS}, "In [" + promptNumber + "]:"),
+              h.span({className: CELL_DRAG_PROMPT_CLASS}, 'In [' + promptNumber + ']:'),
               h.span({className: CELL_DRAG_CONTENT_CLASS}, cellContent)
             )
           )
@@ -1643,8 +1643,7 @@ namespace Private {
         languagePreference: options.languagePreference,
         contentFactory: Notebook.defaultContentFactory,
         mimeTypeService: options.mimeTypeService
-
-      }
+      };
     }
   }
 }

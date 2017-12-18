@@ -30,7 +30,7 @@ class Wodget extends Widget {
 describe('@jupyterlab/mainmenu', () => {
 
   describe('FileMenu', () => {
-    
+
     let commands: CommandRegistry;
     let menu: FileMenu;
     let tracker: InstanceTracker<Wodget>;
@@ -64,7 +64,7 @@ describe('@jupyterlab/mainmenu', () => {
     describe('#newMenu', () => {
 
       it('should be a submenu for `New...` commands', () => {
-        expect(menu.newMenu.title.label).to.be('New');
+        expect(menu.newMenu.menu.title.label).to.be('New');
       });
 
     });
@@ -74,15 +74,34 @@ describe('@jupyterlab/mainmenu', () => {
       it('should allow setting of an ICloseAndCleaner', () => {
         const cleaner: IFileMenu.ICloseAndCleaner<Wodget> = {
           tracker,
+          name: 'Wodget',
           action: 'Clean',
           closeAndCleanup: widget => {
             widget.state = 'clean';
             return Promise.resolve(void 0);
           }
-        }
+        };
         menu.closeAndCleaners.add(cleaner);
         delegateExecute(wodget, menu.closeAndCleaners, 'closeAndCleanup');
         expect(wodget.state).to.be('clean');
+      });
+
+    });
+
+    describe('#consoleCreators', () => {
+
+      it('should allow setting of an IConsoleCreator', () => {
+        const creator: IFileMenu.IConsoleCreator<Wodget> = {
+          tracker,
+          name: 'Wodget',
+          createConsole: widget => {
+            widget.state = 'create';
+            return Promise.resolve(void 0);
+          },
+        };
+        menu.consoleCreators.add(creator);
+        delegateExecute(wodget, menu.consoleCreators, 'createConsole');
+        expect(wodget.state).to.be('create');
       });
 
     });

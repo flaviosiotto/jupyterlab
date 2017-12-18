@@ -14,7 +14,7 @@ import {
 } from '@jupyterlab/launcher';
 
 import {
-  IMainMenu
+  IMainMenu, IEditMenu
 } from '@jupyterlab/mainmenu';
 
 import {
@@ -22,7 +22,7 @@ import {
 } from '@jupyterlab/services';
 
 import {
-  Terminal, ITerminalTracker
+  ITerminalTracker, Terminal
 } from '@jupyterlab/terminal';
 
 
@@ -63,9 +63,7 @@ const plugin: JupyterLabPlugin<ITerminalTracker> = {
   activate,
   id: '@jupyterlab/terminal-extension:plugin',
   provides: ITerminalTracker,
-  requires: [
-    IMainMenu, ICommandPalette, ILayoutRestorer
-  ],
+  requires: [IMainMenu, ICommandPalette, ILayoutRestorer],
   optional: [ILauncher],
   autoStart: true
 };
@@ -103,7 +101,6 @@ function activate(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette
 
   // Add some commands to the application view menu.
   const viewGroup = [
-    CommandIDs.refresh,
     CommandIDs.increaseFont,
     CommandIDs.decreaseFont,
     CommandIDs.toggleTheme
@@ -112,16 +109,30 @@ function activate(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette
 
   // Add command palette items.
   [
+    CommandIDs.createNew,
     CommandIDs.refresh,
     CommandIDs.increaseFont,
     CommandIDs.decreaseFont,
     CommandIDs.toggleTheme
   ].forEach(command => {
-    palette.addItem({ command, category });
+    palette.addItem({ command, category, args: { 'isPalette': true } });
   });
 
   // Add terminal creation to the file menu.
-  mainMenu.fileMenu.newMenu.addItem({ command: CommandIDs.createNew });
+  mainMenu.fileMenu.newMenu.addGroup([{ command: CommandIDs.createNew }], 20);
+
+  // Add terminal clearing to the edit menu.
+  mainMenu.editMenu.clearers.add({
+    tracker,
+    noun: 'Terminal',
+    clearCurrent: current => {
+      current.refresh().then(() => {
+        if (current) {
+          current.activate();
+        }
+      });
+    }
+  } as IEditMenu.IClearer<Terminal>);
 
   // Add a launcher item if the launcher is available.
   if (launcher) {
@@ -130,9 +141,7 @@ function activate(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette
       category: 'Other',
       rank: 0,
       iconClass: TERMINAL_ICON_CLASS,
-      callback: () => {
-        return commands.execute(CommandIDs.createNew);
-      }
+      callback: () => commands.execute(CommandIDs.createNew)
     });
   }
 
@@ -159,25 +168,25 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Instanc
 
   // Add terminal commands.
   commands.addCommand(CommandIDs.createNew, {
-    label: 'Terminal',
+    label: args => args['isPalette'] ? 'New Terminal' : 'Terminal',
     caption: 'Start a new terminal session',
     execute: args => {
-      let name = args['name'] as string;
-      let initialCommand = args['initialCommand'] as string;
-      let term = new Terminal({ initialCommand });
+      const name = args['name'] as string;
+      const initialCommand = args['initialCommand'] as string;
+      const term = new Terminal({ initialCommand });
+      const promise = name ? services.terminals.connectTo(name)
+        : services.terminals.startNew();
+
       term.title.closable = true;
       term.title.icon = TERMINAL_ICON_CLASS;
       term.title.label = '...';
       shell.addToMainArea(term);
 
-      let promise = name ?
-        services.terminals.connectTo(name)
-        : services.terminals.startNew();
-
       return promise.then(session => {
         term.session = session;
         tracker.add(term);
         shell.activateById(term.id);
+
         return term;
       }).catch(() => { term.dispose(); });
     }
@@ -200,7 +209,7 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Instanc
   });
 
   commands.addCommand(CommandIDs.refresh, {
-    label: 'Refresh Terminal',
+    label: 'Clear Terminal',
     caption: 'Refresh the current terminal session',
     execute: () => {
       let current = tracker.currentWidget;

@@ -297,10 +297,11 @@ class FileEditor extends Widget implements DocumentRegistry.IReadyWidget {
    */
   private _onPathChanged(): void {
     const editor = this.editor;
-    const path = this._context.path;
+    const localPath = this._context.localPath;
 
-    editor.model.mimeType = this._mimeTypeService.getMimeTypeByFilePath(path);
-    this.title.label = PathExt.basename(path.split(':').pop()!);
+    editor.model.mimeType =
+      this._mimeTypeService.getMimeTypeByFilePath(localPath);
+    this.title.label = PathExt.basename(localPath);
   }
 
   private editorWidget: FileEditorCodeWrapper;
@@ -356,8 +357,7 @@ class FileEditorFactory extends ABCWidgetFactory<FileEditor, DocumentRegistry.IC
    * Create a new widget given a context.
    */
   protected createNewWidget(context: DocumentRegistry.CodeContext): FileEditor {
-    let func = this._services.factoryService.newDocumentEditor.bind(
-      this._services.factoryService);
+    let func = this._services.factoryService.newDocumentEditor;
     let factory: CodeEditor.Factory = options => {
       return func(options);
     };

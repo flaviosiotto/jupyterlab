@@ -540,17 +540,17 @@ class DirListing extends Widget {
   }
 
   /**
-   * Find a path given a click.
+   * Find a model given a click.
    *
    * @param event - The mouse event.
    *
-   * @returns The path to the selected file.
+   * @returns The model for the selected file.
    */
-  pathForClick(event: MouseEvent): string | undefined {
+  modelForClick(event: MouseEvent): Contents.IModel | undefined {
     let items = this._sortedItems;
     let index = Private.hitTestNodes(this._items, event.clientX, event.clientY);
     if (index !== -1) {
-      return items[index].path;
+      return items[index];
     }
     return undefined;
   }
@@ -816,6 +816,10 @@ class DirListing extends Widget {
     }
     this._handleFileSelect(event);
 
+    if (event.button !== 0) {
+      clearTimeout(this._selectTimer);
+    }
+
     // Check for clearing a context menu.
     let newContext = (IS_MAC && event.ctrlKey) || (event.button === 2);
     if (newContext) {
@@ -828,10 +832,6 @@ class DirListing extends Widget {
                          index: index };
       document.addEventListener('mouseup', this, true);
       document.addEventListener('mousemove', this, true);
-    }
-
-    if (event.button !== 0) {
-      clearTimeout(this._selectTimer);
     }
   }
 
@@ -1090,7 +1090,8 @@ class DirListing extends Widget {
     const promises: Promise<Contents.IModel | null>[] = [];
     const paths = event.mimeData.getData(CONTENTS_MIME) as string[];
     for (let path of paths) {
-      let name = PathExt.basename(path);
+      let localPath = manager.services.contents.localPath(path);
+      let name = PathExt.basename(localPath);
       let newPath = PathExt.join(basePath, name);
       // Skip files that are not moving.
       if (newPath === path) {
@@ -1264,9 +1265,7 @@ class DirListing extends Widget {
   private _copy(): void {
     this._clipboard.length = 0;
     each(this.selectedItems(), item => {
-      if (item.type !== 'directory') {
-        this._clipboard.push(item.path);
-      }
+      this._clipboard.push(item.path);
     });
   }
 

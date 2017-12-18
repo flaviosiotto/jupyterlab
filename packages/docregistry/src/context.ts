@@ -2,7 +2,7 @@
 // Distributed under the terms of the Modified BSD License.
 
 import {
-  Contents, ServiceManager
+  Contents, ServiceManager, ServerConnection
 } from '@jupyterlab/services';
 
 import {
@@ -53,11 +53,13 @@ class Context<T extends DocumentRegistry.IModel> implements DocumentRegistry.ICo
     this._factory = options.factory;
     this._opener = options.opener || Private.noOp;
     this._path = options.path;
-    let lang = this._factory.preferredLanguage(PathExt.basename(this._path));
+    const localPath = this._manager.contents.localPath(this._path);
+    let lang = this._factory.preferredLanguage(PathExt.basename(localPath));
 
     let dbFactory = options.modelDBFactory;
     if (dbFactory) {
-      this._modelDB = dbFactory.createNew(this._path.split(':').pop()!);
+      const localPath = manager.contents.localPath(this._path);
+      this._modelDB = dbFactory.createNew(localPath);
       this._model = this._factory.createNew(lang, this._modelDB);
     } else {
       this._model = this._factory.createNew(lang);
@@ -72,7 +74,7 @@ class Context<T extends DocumentRegistry.IModel> implements DocumentRegistry.ICo
       manager: manager.sessions,
       path: this._path,
       type: ext === '.ipynb' ? 'notebook' : 'file',
-      name: PathExt.basename(this._path),
+      name: PathExt.basename(localPath),
       kernelPreference: options.kernelPreference || { shouldStart: false }
     });
     this.session.propertyChanged.connect(this._onSessionChanged, this);
@@ -117,6 +119,15 @@ class Context<T extends DocumentRegistry.IModel> implements DocumentRegistry.ICo
    */
   get path(): string {
     return this._path;
+  }
+
+  /**
+   * The current local path associated with the document.
+   * If the document is in the default notebook file browser,
+   * this is the same as the path.
+   */
+  get localPath(): string {
+    return this._manager.contents.localPath(this._path);
   }
 
   /**
@@ -233,20 +244,7 @@ class Context<T extends DocumentRegistry.IModel> implements DocumentRegistry.ICo
         return this._populate();
       }
     }).catch(err => {
-      let body = '';
-      // Check for a more specific error message.
-      if (err.xhr) {
-        try {
-          body = JSON.parse(err.xhr.response).message;
-        } catch (e) {
-          body = err.xhr.responseText;
-        }
-      }
-      showDialog({
-        title: 'File Save Error',
-        body: body || String(err),
-        buttons: [Dialog.okButton()]
-      });
+      this._handleError(err, 'File Save Error');
     });
   }
 
@@ -267,7 +265,7 @@ class Context<T extends DocumentRegistry.IModel> implements DocumentRegistry.ICo
       }).then(() => {
         return this._maybeOverWrite(newPath);
       }).catch(err => {
-        if (!err.xhr || err.xhr.status !== 404) {
+        if (!err.response || err.response.status !== 404) {
           throw err;
         }
         return this._finishSaveAs(newPath);
@@ -311,11 +309,7 @@ class Context<T extends DocumentRegistry.IModel> implements DocumentRegistry.ICo
         return this._populate();
       }
     }).catch(err => {
-      showDialog({
-        title: 'File Load Error',
-        body: err.xhr.responseText,
-        buttons: [Dialog.okButton()]
-      });
+      this._handleError(err, 'File Load Error');
     });
   }
 
@@ -415,7 +409,8 @@ class Context<T extends DocumentRegistry.IModel> implements DocumentRegistry.ICo
     let newPath = change.newValue && change.newValue.path;
     if (newPath && oldPath === this._path) {
       this.session.setPath(newPath);
-      this.session.setName(PathExt.basename(newPath));
+      const localPath = this._manager.contents.localPath(newPath);
+      this.session.setName(PathExt.basename(localPath));
       this._path = newPath;
       this._updateContentsModel(change.newValue as Contents.IModel);
       this._pathChanged.emit(this._path);
@@ -508,11 +503,35 @@ class Context<T extends DocumentRegistry.IModel> implements DocumentRegistry.ICo
       }
       return this._manager.contents.save(path, options);
     }, (err) => {
-      if (err.xhr && err.xhr.status === 404) {
+      if (err.response && err.response.status === 404) {
         return this._manager.contents.save(path, options);
       }
       throw err;
     });
+  }
+
+  /**
+   * Handle a save/load error with a dialog.
+   */
+  private _handleError(err: Error | ServerConnection.ResponseError, title: string): void {
+    let buttons = [Dialog.okButton()];
+
+    // Check for a more specific error message.
+    if (err instanceof ServerConnection.ResponseError) {
+      err.response.text().then(text => {
+        let body = '';
+        try {
+          body = JSON.parse(text).message;
+        } catch (e) {
+          body = text;
+        }
+        body = body || err.message;
+        showDialog({ title, body, buttons });
+      });
+    } else {
+      let body = err.message;
+      showDialog({ title, body, buttons });
+    }
   }
 
   /**
@@ -536,7 +555,7 @@ class Context<T extends DocumentRegistry.IModel> implements DocumentRegistry.ICo
     }
     return promise.catch(err => {
       // Handle a read-only folder.
-      if (!err.xhr || err.xhr.status !== 403) {
+      if (!err.response || err.response.status !== 403) {
         throw err;
       }
     });

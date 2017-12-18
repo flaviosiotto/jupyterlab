@@ -370,9 +370,10 @@ class DefaultKernel implements Kernel.IKernel {
     if (this.status === 'dead') {
       return Promise.reject(new Error('Kernel is dead'));
     }
-    this._clearState();
-    this._clearSocket();
-    return Private.shutdownKernel(this.id, this.serverSettings);
+    return Private.shutdownKernel(this.id, this.serverSettings).then(() => {
+      this._clearState();
+      this._clearSocket();
+    });
   }
 
   /**
@@ -628,128 +629,6 @@ class DefaultKernel implements Kernel.IKernel {
   }
 
   /**
-   * Create the kernel websocket connection and add socket status handlers.
-   */
-  private _createSocket(): void {
-    let settings = this.serverSettings;
-    let partialUrl = URLExt.join(settings.wsUrl, KERNEL_SERVICE_URL,
-                                 encodeURIComponent(this._id));
-
-    // Strip any authentication from the display string.
-    let display = partialUrl.replace(/^((?:\w+:)?\/\/)(?:[^@\/]+@)/, '$1');
-    console.log('Starting WebSocket:', display);
-
-    let url = URLExt.join(
-        partialUrl,
-        'channels?session_id=' + encodeURIComponent(this._clientId)
-    );
-    // If token authentication is in use.
-    let token = settings.token;
-    if (token !== '') {
-      url = url + `&token=${encodeURIComponent(token)}`;
-    }
-
-    this._connectionPromise = new PromiseDelegate<void>();
-    this._wsStopped = false;
-    this._ws = settings.wsFactory(url);
-
-    // Ensure incoming binary messages are not Blobs
-    this._ws.binaryType = 'arraybuffer';
-
-    this._ws.onmessage = (evt: MessageEvent) => { this._onWSMessage(evt); };
-    this._ws.onopen = (evt: Event) => { this._onWSOpen(evt); };
-    this._ws.onclose = (evt: Event) => { this._onWSClose(evt); };
-    this._ws.onerror = (evt: Event) => { this._onWSClose(evt); };
-  }
-
-  /**
-   * Handle a websocket open event.
-   */
-  private _onWSOpen(evt: Event): void {
-    this._reconnectAttempt = 0;
-    // Allow the message to get through.
-    this._isReady = true;
-    // Update our status to connected.
-    this._updateStatus('connected');
-    // Get the kernel info, signaling that the kernel is ready.
-    this.requestKernelInfo().then(() => {
-      this._connectionPromise.resolve(void 0);
-    }).catch(err => {
-      this._connectionPromise.reject(err);
-    });
-    this._isReady = false;
-  }
-
-  /**
-   * Handle a websocket message, validating and routing appropriately.
-   */
-  private _onWSMessage(evt: MessageEvent) {
-    if (this._wsStopped) {
-      // If the socket is being closed, ignore any messages
-      return;
-    }
-    let msg = serialize.deserialize(evt.data);
-    try {
-      validate.validateMessage(msg);
-    } catch (error) {
-      console.error(`Invalid message: ${error.message}`);
-      return;
-    }
-
-    let handled = false;
-
-    if (msg.parent_header && msg.channel === 'iopub') {
-      switch (msg.header.msg_type) {
-      case 'display_data':
-      case 'update_display_data':
-      case 'execute_result':
-        // display_data messages may re-route based on their display_id.
-        let transient = (msg.content.transient || {}) as JSONObject;
-        let displayId = transient['display_id'] as string;
-        if (displayId) {
-          handled = this._handleDisplayId(displayId, msg);
-        }
-        break;
-      default:
-        break;
-      }
-    }
-
-    if (!handled && msg.parent_header) {
-      let parentHeader = msg.parent_header as KernelMessage.IHeader;
-      let future = this._futures && this._futures.get(parentHeader.msg_id);
-      if (future) {
-        future.handleMsg(msg);
-      } else {
-        // If the message was sent by us and was not iopub, it is orphaned.
-        let owned = parentHeader.session === this.clientId;
-        if (msg.channel !== 'iopub' && owned) {
-          this._unhandledMessage.emit(msg);
-        }
-      }
-    }
-    if (msg.channel === 'iopub') {
-      switch (msg.header.msg_type) {
-      case 'status':
-        this._updateStatus((msg as KernelMessage.IStatusMsg).content.execution_state);
-        break;
-      case 'comm_open':
-        this._handleCommOpen(msg as KernelMessage.ICommOpenMsg);
-        break;
-      case 'comm_msg':
-        this._handleCommMsg(msg as KernelMessage.ICommMsgMsg);
-        break;
-      case 'comm_close':
-        this._handleCommClose(msg as KernelMessage.ICommCloseMsg);
-        break;
-      default:
-        break;
-      }
-      this._iopubMessage.emit(msg as KernelMessage.IIOPubMessage);
-    }
-  }
-
-  /**
    * Handle a message with a display id.
    *
    * @returns Whether the message was handled.
@@ -801,30 +680,6 @@ class DefaultKernel implements Kernel.IKernel {
 
     // Let it propagate to the intended recipient.
     return false;
-  }
-
-  /**
-   * Handle a websocket close event.
-   */
-  private _onWSClose(evt: Event) {
-    if (this._wsStopped || !this._ws) {
-      return;
-    }
-    // Clear the websocket event handlers and the socket itself.
-    this._ws.onclose = this._noOp;
-    this._ws.onerror = this._noOp;
-    this._ws = null;
-
-    if (this._reconnectAttempt < this._reconnectLimit) {
-      this._updateStatus('reconnecting');
-      let timeout = Math.pow(2, this._reconnectAttempt);
-      console.error('Connection lost, reconnecting in ' + timeout + ' seconds.');
-      setTimeout(this._createSocket.bind(this), 1e3 * timeout);
-      this._reconnectAttempt += 1;
-    } else {
-      this._updateStatus('dead');
-      this._connectionPromise.reject(new Error('Could not establish connection'));
-    }
   }
 
   /**
@@ -1013,6 +868,152 @@ class DefaultKernel implements Kernel.IKernel {
     this._commPromises.delete(commId);
   }
 
+  /**
+   * Create the kernel websocket connection and add socket status handlers.
+   */
+  private _createSocket = () => {
+    let settings = this.serverSettings;
+    let partialUrl = URLExt.join(settings.wsUrl, KERNEL_SERVICE_URL,
+                                 encodeURIComponent(this._id));
+
+    // Strip any authentication from the display string.
+    let display = partialUrl.replace(/^((?:\w+:)?\/\/)(?:[^@\/]+@)/, '$1');
+    console.log('Starting WebSocket:', display);
+
+    let url = URLExt.join(
+        partialUrl,
+        'channels?session_id=' + encodeURIComponent(this._clientId)
+    );
+    // If token authentication is in use.
+    let token = settings.token;
+    if (token !== '') {
+      url = url + `&token=${encodeURIComponent(token)}`;
+    }
+
+    this._connectionPromise = new PromiseDelegate<void>();
+    this._wsStopped = false;
+    this._ws = new settings.WebSocket(url);
+
+    // Ensure incoming binary messages are not Blobs
+    this._ws.binaryType = 'arraybuffer';
+
+    this._ws.onmessage = this._onWSMessage;
+    this._ws.onopen = this._onWSOpen;
+    this._ws.onclose = this._onWSClose;
+    this._ws.onerror = this._onWSClose;
+  }
+
+  /**
+   * Handle a websocket open event.
+   */
+  private _onWSOpen = (evt: Event) => {
+    this._reconnectAttempt = 0;
+    // Allow the message to get through.
+    this._isReady = true;
+    // Update our status to connected.
+    this._updateStatus('connected');
+    // Get the kernel info, signaling that the kernel is ready.
+    this.requestKernelInfo().then(() => {
+      this._connectionPromise.resolve(void 0);
+    }).catch(err => {
+      this._connectionPromise.reject(err);
+    });
+    this._isReady = false;
+  }
+
+  /**
+   * Handle a websocket message, validating and routing appropriately.
+   */
+  private _onWSMessage = (evt: MessageEvent) => {
+    if (this._wsStopped) {
+      // If the socket is being closed, ignore any messages
+      return;
+    }
+    let msg = serialize.deserialize(evt.data);
+    try {
+      validate.validateMessage(msg);
+    } catch (error) {
+      console.error(`Invalid message: ${error.message}`);
+      return;
+    }
+
+    let handled = false;
+
+    if (msg.parent_header && msg.channel === 'iopub') {
+      switch (msg.header.msg_type) {
+      case 'display_data':
+      case 'update_display_data':
+      case 'execute_result':
+        // display_data messages may re-route based on their display_id.
+        let transient = (msg.content.transient || {}) as JSONObject;
+        let displayId = transient['display_id'] as string;
+        if (displayId) {
+          handled = this._handleDisplayId(displayId, msg);
+        }
+        break;
+      default:
+        break;
+      }
+    }
+
+    if (!handled && msg.parent_header) {
+      let parentHeader = msg.parent_header as KernelMessage.IHeader;
+      let future = this._futures && this._futures.get(parentHeader.msg_id);
+      if (future) {
+        future.handleMsg(msg);
+      } else {
+        // If the message was sent by us and was not iopub, it is orphaned.
+        let owned = parentHeader.session === this.clientId;
+        if (msg.channel !== 'iopub' && owned) {
+          this._unhandledMessage.emit(msg);
+        }
+      }
+    }
+    if (msg.channel === 'iopub') {
+      switch (msg.header.msg_type) {
+      case 'status':
+        this._updateStatus((msg as KernelMessage.IStatusMsg).content.execution_state);
+        break;
+      case 'comm_open':
+        this._handleCommOpen(msg as KernelMessage.ICommOpenMsg);
+        break;
+      case 'comm_msg':
+        this._handleCommMsg(msg as KernelMessage.ICommMsgMsg);
+        break;
+      case 'comm_close':
+        this._handleCommClose(msg as KernelMessage.ICommCloseMsg);
+        break;
+      default:
+        break;
+      }
+      this._iopubMessage.emit(msg as KernelMessage.IIOPubMessage);
+    }
+  }
+
+  /**
+   * Handle a websocket close event.
+   */
+  private _onWSClose = (evt: Event) => {
+    if (this._wsStopped || !this._ws) {
+      return;
+    }
+    // Clear the websocket event handlers and the socket itself.
+    this._ws.onclose = this._noOp;
+    this._ws.onerror = this._noOp;
+    this._ws = null;
+
+    if (this._reconnectAttempt < this._reconnectLimit) {
+      this._updateStatus('reconnecting');
+      let timeout = Math.pow(2, this._reconnectAttempt);
+      console.error('Connection lost, reconnecting in ' + timeout + ' seconds.');
+      setTimeout(this._createSocket, 1e3 * timeout);
+      this._reconnectAttempt += 1;
+    } else {
+      this._updateStatus('dead');
+      this._connectionPromise.reject(new Error('Could not establish connection'));
+    }
+  }
+
   private _id = '';
   private _name = '';
   private _status: Kernel.Status = 'unknown';
@@ -1125,7 +1126,7 @@ namespace DefaultKernel {
   /**
    * Connect to a running kernel.
    *
-   * @param id - The id of the running kernel.
+   * @param model - The model of the running kernel.
    *
    * @param settings - The server settings for the request.
    *
@@ -1134,18 +1135,10 @@ namespace DefaultKernel {
    * #### Notes
    * If the kernel was already started via `startNewKernel`, the existing
    * Kernel object info is used to create another instance.
-   *
-   * Otherwise, if `options` are given, we attempt to connect to the existing
-   * kernel found by calling `listRunningKernels`.
-   * The promise is fulfilled when the kernel is running on the server,
-   * otherwise the promise is rejected.
-   *
-   * If the kernel was not already started and no `options` are given,
-   * the promise is rejected.
    */
   export
-  function connectTo(id: string, settings?: ServerConnection.ISettings): Promise<Kernel.IKernel> {
-    return Private.connectTo(id, settings);
+  function connectTo(model: Kernel.IModel, settings?: ServerConnection.ISettings): Promise<Kernel.IKernel> {
+    return Private.connectTo(model, settings);
   }
 
   /**
@@ -1160,6 +1153,18 @@ namespace DefaultKernel {
   export
   function shutdown(id: string, settings?: ServerConnection.ISettings): Promise<void> {
     return Private.shutdownKernel(id, settings);
+  }
+
+  /**
+   * Shut down all kernels.
+   *
+   * @param settings - The server settings to use.
+   *
+   * @returns A promise that resolves when all the kernels are shut down.
+   */
+  export
+  function shutdownAll(settings?: ServerConnection.ISettings): Promise<void> {
+    return Private.shutdownAll(settings);
   }
 }
 
@@ -1218,20 +1223,14 @@ namespace Private {
   export
   function getSpecs(settings?: ServerConnection.ISettings): Promise<Kernel.ISpecModels> {
     settings = settings || ServerConnection.makeSettings();
-    let request = {
-      url: URLExt.join(settings.baseUrl, KERNELSPEC_SERVICE_URL),
-      method: 'GET',
-      cache: false
-    };
-    let promise = ServerConnection.makeRequest(request, settings).then(response => {
-      if (response.xhr.status !== 200) {
-        throw ServerConnection.makeError(response);
+    let url = URLExt.join(settings.baseUrl, KERNELSPEC_SERVICE_URL);
+    let promise = ServerConnection.makeRequest(url, {}, settings).then(response => {
+      if (response.status !== 200) {
+        throw new ServerConnection.ResponseError(response);
       }
-      try {
-        return validate.validateSpecModels(response.data);
-      } catch (err) {
-        throw ServerConnection.makeError(response, err.message);
-      }
+      return response.json();
+    }).then(data => {
+      return validate.validateSpecModels(data);
     });
     Private.specs[settings.baseUrl] = promise;
     return promise;
@@ -1248,27 +1247,21 @@ namespace Private {
   export
   function listRunning(settings?: ServerConnection.ISettings): Promise<Kernel.IModel[]> {
     settings = settings || ServerConnection.makeSettings();
-    let request = {
-      url: URLExt.join(settings.baseUrl, KERNEL_SERVICE_URL),
-      method: 'GET',
-      cache: false
-    };
-    return ServerConnection.makeRequest(request, settings).then(response => {
-      if (response.xhr.status !== 200) {
-        throw ServerConnection.makeError(response);
+    let url = URLExt.join(settings.baseUrl, KERNEL_SERVICE_URL);
+    return ServerConnection.makeRequest(url, {}, settings).then(response => {
+      if (response.status !== 200) {
+        throw new ServerConnection.ResponseError(response);
       }
-      if (!Array.isArray(response.data)) {
-        throw ServerConnection.makeError(response, 'Invalid kernel list');
+      return response.json();
+    }).then(data => {
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid kernel list');
       }
-      for (let i = 0; i < response.data.length; i++) {
-        try {
-          validate.validateModel(response.data[i]);
-        } catch (err) {
-          throw ServerConnection.makeError(response, err.message);
-        }
+      for (let i = 0; i < data.length; i++) {
+        validate.validateModel(data[i]);
       }
-      return updateRunningKernels(response.data);
-    }, onKernelError);
+      return updateRunningKernels(data);
+    });
   }
 
   /**
@@ -1295,59 +1288,42 @@ namespace Private {
   export
   function startNew(options: Kernel.IOptions): Promise<Kernel.IKernel> {
     let settings = options.serverSettings || ServerConnection.makeSettings();
-    let request = {
-      url: URLExt.join(settings.baseUrl, KERNEL_SERVICE_URL),
+    let url = URLExt.join(settings.baseUrl, KERNEL_SERVICE_URL);
+    let init = {
       method: 'POST',
-      data: JSON.stringify({ name: options.name }),
-      contentType: 'application/json',
-      cache: false
+      body: JSON.stringify({ name: options.name })
     };
-    return ServerConnection.makeRequest(request, settings).then(response => {
-      if (response.xhr.status !== 201) {
-        throw ServerConnection.makeError(response);
+    return ServerConnection.makeRequest(url, init, settings).then(response => {
+      if (response.status !== 201) {
+        throw new ServerConnection.ResponseError(response);
       }
-      validate.validateModel(response.data);
+      return response.json();
+    }).then(data => {
+      validate.validateModel(data);
       return new DefaultKernel({
         ...options,
-        name: response.data.name,
+        name: data.name,
         serverSettings: settings
-      }, response.data.id);
-    }, onKernelError);
+      }, data.id);
+    });
   }
 
   /**
    * Connect to a running kernel.
-   *
-   * #### Notes
-   * If the kernel was already started via `startNewKernel`, the existing
-   * Kernel object info is used to create another instance.
-   *
-   * Otherwise, if `options` are given, we attempt to connect to the existing
-   * kernel found by calling `listRunningKernels`.
-   * The promise is fulfilled when the kernel is running on the server,
-   * otherwise the promise is rejected.
-   *
-   * If the kernel was not already started and no `options` are given,
-   * the promise is rejected.
    */
   export
-  function connectTo(id: string, settings?: ServerConnection.ISettings): Promise<Kernel.IKernel> {
-    settings = settings || ServerConnection.makeSettings();
+  function connectTo(model: Kernel.IModel, settings?: ServerConnection.ISettings): Promise<Kernel.IKernel> {
+    let serverSettings = settings || ServerConnection.makeSettings();
     let kernel = find(runningKernels, value => {
-      return value.id === id;
+      return value.id === model.id;
     });
     if (kernel) {
       return Promise.resolve(kernel.clone());
     }
 
-    return getKernelModel(id, settings).then(model => {
-      return new DefaultKernel({
-        name: model.name,
-        serverSettings: settings
-        }, id);
-    }).catch(() => {
-      throw new Error(`No running kernel with id: ${id}`);
-    });
+    return Promise.resolve(new DefaultKernel(
+      { name: model.name, serverSettings }, model.id
+    ));
   }
 
   /**
@@ -1363,21 +1339,15 @@ namespace Private {
       settings.baseUrl, KERNEL_SERVICE_URL,
       encodeURIComponent(kernel.id), 'restart'
     );
-    let request = {
-      url,
-      method: 'POST',
-      cache: false
-    };
-    return ServerConnection.makeRequest(request, settings).then(response => {
-      if (response.xhr.status !== 200) {
-        throw ServerConnection.makeError(response);
+    let init = { method: 'POST' };
+    return ServerConnection.makeRequest(url, init, settings).then(response => {
+      if (response.status !== 200) {
+        throw new ServerConnection.ResponseError(response);
       }
-      try {
-        validate.validateModel(response.data);
-      } catch (err) {
-        throw ServerConnection.makeError(response, err.message);
-      }
-    }, onKernelError);
+      return response.json();
+    }).then(data => {
+      validate.validateModel(data);
+    });
   }
 
   /**
@@ -1393,16 +1363,12 @@ namespace Private {
       settings.baseUrl, KERNEL_SERVICE_URL,
       encodeURIComponent(kernel.id), 'interrupt'
     );
-    let request = {
-      url,
-      method: 'POST',
-      cache: false
-    };
-    return ServerConnection.makeRequest(request, settings).then(response => {
-      if (response.xhr.status !== 204) {
-        throw ServerConnection.makeError(response);
+    let init = { method: 'POST' };
+    return ServerConnection.makeRequest(url, init, settings).then(response => {
+      if (response.status !== 204) {
+        throw new ServerConnection.ResponseError(response);
       }
-    }, onKernelError);
+    });
   }
 
   /**
@@ -1413,24 +1379,36 @@ namespace Private {
     settings = settings || ServerConnection.makeSettings();
     let url = URLExt.join(settings.baseUrl, KERNEL_SERVICE_URL,
                                 encodeURIComponent(id));
-    let request = {
-      url,
-      method: 'DELETE',
-      cache: false
-    };
-    return ServerConnection.makeRequest(request, settings).then(response => {
-      if (response.xhr.status !== 204) {
-        throw ServerConnection.makeError(response);
+    let init = { method: 'DELETE' };
+    return ServerConnection.makeRequest(url, init, settings).then(response => {
+      if (response.status === 404) {
+        response.json().then(data => {
+          let msg = (
+            data.message || `The kernel "${id}"" does not exist on the server`
+          );
+          console.warn(msg);
+        });
+      } else if (response.status !== 204) {
+        throw new ServerConnection.ResponseError(response);
       }
       killKernels(id);
-    }, error => {
-      if (error.xhr.status === 404) {
-        let response = JSON.parse(error.xhr.responseText) as any;
-        console.warn(response['message']);
-        killKernels(id);
-      } else {
-        return onKernelError(error);
-      }
+    });
+  }
+
+  /**
+   * Shut down all kernels.
+   *
+   * @param settings - The server settings to use.
+   *
+   * @returns A promise that resolves when all the kernels are shut down.
+   */
+  export
+  function shutdownAll(settings?: ServerConnection.ISettings): Promise<void> {
+    settings = settings || ServerConnection.makeSettings();
+    return listRunning(settings).then(running => {
+      each(running, k => {
+        shutdownKernel(k.id, settings);
+      });
     });
   }
 
@@ -1454,23 +1432,15 @@ namespace Private {
     settings = settings || ServerConnection.makeSettings();
     let url = URLExt.join(settings.baseUrl, KERNEL_SERVICE_URL,
                                 encodeURIComponent(id));
-    let request = {
-      url,
-      method: 'GET',
-      cache: false
-    };
-    return ServerConnection.makeRequest(request, settings).then(response => {
-      if (response.xhr.status !== 200) {
-        throw ServerConnection.makeError(response);
+    return ServerConnection.makeRequest(url, {}, settings).then(response => {
+      if (response.status !== 200) {
+        throw new ServerConnection.ResponseError(response);
       }
-      let data = response.data as Kernel.IModel;
-      try {
-        validate.validateModel(data);
-      } catch (err) {
-        throw ServerConnection.makeError(response, err.message);
-      }
+      return response.json();
+    }).then(data => {
+      validate.validateModel(data);
       return data;
-    }, Private.onKernelError);
+    });
   }
 
   /**
@@ -1487,19 +1457,6 @@ namespace Private {
       console.log(`Kernel: ${kernel.status} (${kernel.id})`);
       break;
     }
-  }
-
-  /**
-   * Handle an error on a kernel Ajax call.
-   */
-  export
-  function onKernelError(error: ServerConnection.IError): Promise<any> {
-    let text = (error.message ||
-                error.xhr.statusText ||
-                error.xhr.responseText);
-    let msg = `API request failed: ${text}`;
-    console.error(msg);
-    return Promise.reject(error);
   }
 
   /**
@@ -1547,5 +1504,5 @@ namespace Private {
         }
       }
     });
-  };
+  }
 }

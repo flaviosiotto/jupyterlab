@@ -1,7 +1,7 @@
 
 
 module.exports = {
-  entry: './build/index.js',
+  entry: ['whatwg-fetch', './build/index.js'],
   output: {
     path: __dirname + '/build',
     filename: 'bundle.js',
@@ -27,4 +27,4 @@ module.exports = {
       { test: /\.svg(\?v=\d+\.\d+\.\d+)?$/, use: 'url-loader?limit=10000&mimetype=image/svg+xml' }
     ],
   }
-}
+};

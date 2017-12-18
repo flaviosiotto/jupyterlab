@@ -2,7 +2,7 @@
 // Distributed under the terms of the Modified BSD License.
 
 import {
-  JSONObject
+  JSONObject, ReadonlyJSONObject
 } from '@phosphor/coreutils';
 
 import {
@@ -30,8 +30,12 @@ import {
 } from '@jupyterlab/coreutils';
 
 import {
-  IOutputModel, RenderMime
+ IOutputModel, RenderMimeRegistry
 } from '@jupyterlab/rendermime';
+
+import {
+  IRenderMime
+} from '@jupyterlab/rendermime-interfaces';
 
 import {
   Kernel, KernelMessage
@@ -146,7 +150,7 @@ class OutputArea extends Widget {
   /**
    * Te rendermime instance used by the widget.
    */
-  readonly rendermime: RenderMime;
+  readonly rendermime: RenderMimeRegistry;
 
   /**
    * A read-only sequence of the chidren widgets in the output area.
@@ -193,10 +197,10 @@ class OutputArea extends Widget {
     }
 
     // Handle published messages.
-    value.onIOPub = this._onIOPub.bind(this);
+    value.onIOPub = this._onIOPub;
 
     // Handle the execute reply.
-    value.onReply = this._onExecuteReply.bind(this);
+    value.onReply = this._onExecuteReply;
 
     // Handle stdin.
     value.onStdin = msg => {
@@ -282,76 +286,6 @@ class OutputArea extends Widget {
   }
 
   /**
-   * Handle an iopub message.
-   */
-  private _onIOPub(msg: KernelMessage.IIOPubMessage): void {
-    let model = this.model;
-    let msgType = msg.header.msg_type;
-    let output: nbformat.IOutput;
-    let transient = (msg.content.transient || {}) as JSONObject;
-    let displayId = transient['display_id'] as string;
-    let targets: number[];
-
-    switch (msgType) {
-    case 'execute_result':
-    case 'display_data':
-    case 'stream':
-    case 'error':
-      output = msg.content as nbformat.IOutput;
-      output.output_type = msgType as nbformat.OutputType;
-      model.add(output);
-      break;
-    case 'clear_output':
-      let wait = (msg as KernelMessage.IClearOutputMsg).content.wait;
-      model.clear(wait);
-      break;
-    case 'update_display_data':
-      output = msg.content as nbformat.IOutput;
-      output.output_type = 'display_data';
-      targets = this._displayIdMap.get(displayId);
-      if (targets) {
-        for (let index of targets) {
-          model.set(index, output);
-        }
-      }
-      break;
-    default:
-      break;
-    }
-    if (displayId && msgType === 'display_data') {
-       targets = this._displayIdMap.get(displayId) || [];
-       targets.push(model.length - 1);
-       this._displayIdMap.set(displayId, targets);
-    }
-  }
-
-  /**
-   * Handle an execute reply message.
-   */
-  private _onExecuteReply(msg: KernelMessage.IExecuteReplyMsg): void {
-    // API responses that contain a pager are special cased and their type
-    // is overriden from 'execute_reply' to 'display_data' in order to
-    // render output.
-    let model = this.model;
-    let content = msg.content as KernelMessage.IExecuteOkReply;
-    let payload = content && content.payload;
-    if (!payload || !payload.length) {
-      return;
-    }
-    let pages = payload.filter((i: any) => (i as any).source === 'page');
-    if (!pages.length) {
-      return;
-    }
-    let page = JSON.parse(JSON.stringify(pages[0]));
-    let output: nbformat.IOutput = {
-      output_type: 'display_data',
-      data: (page as any).data as nbformat.IMimeBundle,
-      metadata: {}
-    };
-    model.add(output);
-  }
-
-  /**
    * Handle an input request from a kernel.
    */
   private _onInputRequest(msg: KernelMessage.IInputRequestMsg, future: Kernel.IFuture): void {
@@ -418,13 +352,97 @@ class OutputArea extends Widget {
       model.data, !model.trusted
     );
     if (mimeType) {
+      let metadata = model.metadata;
+      let mimeMd = metadata[mimeType] as ReadonlyJSONObject;
+      let isolated = false;
+      // mime-specific higher priority
+      if (mimeMd && mimeMd['isolated'] !== undefined) {
+        isolated = mimeMd['isolated'] as boolean;
+      } else {
+        // fallback on global
+        isolated = metadata['isolated'] as boolean;
+      }
+
       let output = this.rendermime.createRenderer(mimeType);
+      if (isolated === true) {
+        output = new Private.IsolatedRenderer(output);
+      }
       output.renderModel(model);
       output.addClass(OUTPUT_AREA_OUTPUT_CLASS);
       panel.addWidget(output);
     }
 
     return panel;
+  }
+
+  /**
+   * Handle an iopub message.
+   */
+  private _onIOPub = (msg: KernelMessage.IIOPubMessage) => {
+    let model = this.model;
+    let msgType = msg.header.msg_type;
+    let output: nbformat.IOutput;
+    let transient = (msg.content.transient || {}) as JSONObject;
+    let displayId = transient['display_id'] as string;
+    let targets: number[];
+
+    switch (msgType) {
+    case 'execute_result':
+    case 'display_data':
+    case 'stream':
+    case 'error':
+      output = msg.content as nbformat.IOutput;
+      output.output_type = msgType as nbformat.OutputType;
+      model.add(output);
+      break;
+    case 'clear_output':
+      let wait = (msg as KernelMessage.IClearOutputMsg).content.wait;
+      model.clear(wait);
+      break;
+    case 'update_display_data':
+      output = msg.content as nbformat.IOutput;
+      output.output_type = 'display_data';
+      targets = this._displayIdMap.get(displayId);
+      if (targets) {
+        for (let index of targets) {
+          model.set(index, output);
+        }
+      }
+      break;
+    default:
+      break;
+    }
+    if (displayId && msgType === 'display_data') {
+       targets = this._displayIdMap.get(displayId) || [];
+       targets.push(model.length - 1);
+       this._displayIdMap.set(displayId, targets);
+    }
+  }
+
+  /**
+   * Handle an execute reply message.
+   */
+  private _onExecuteReply = (msg: KernelMessage.IExecuteReplyMsg) => {
+    // API responses that contain a pager are special cased and their type
+    // is overriden from 'execute_reply' to 'display_data' in order to
+    // render output.
+    let model = this.model;
+    let content = msg.content as KernelMessage.IExecuteOkReply;
+    let payload = content && content.payload;
+    if (!payload || !payload.length) {
+      return;
+    }
+    let pages = payload.filter((i: any) => (i as any).source === 'page');
+    if (!pages.length) {
+      return;
+    }
+    let page = JSON.parse(JSON.stringify(pages[0]));
+    let output: nbformat.IOutput = {
+      output_type: 'display_data',
+      data: (page as any).data as nbformat.IMimeBundle,
+      metadata: {}
+    };
+    model.add(output);
   }
 
   private _minHeightTimeout: number = null;
@@ -456,7 +474,7 @@ namespace OutputArea {
     /**
      * The rendermime instance used by the widget.
      */
-    rendermime: RenderMime;
+    rendermime: RenderMimeRegistry;
   }
 
   /**
@@ -707,5 +725,68 @@ namespace Private {
     node.appendChild(prompt);
     node.appendChild(input);
     return node;
+  }
+
+  /**
+   * A renderer for IFrame data.
+   */
+  export
+  class IsolatedRenderer extends Widget implements IRenderMime.IRenderer {
+    /**
+     * Create an isolated renderer.
+     */
+    constructor(wrapped: IRenderMime.IRenderer) {
+      super({ node: document.createElement('iframe') });
+      this.addClass('jp-mod-isolated');
+
+      this._wrapped = wrapped;
+
+      // Once the iframe is loaded, the subarea is dynamically inserted
+      let iframe = this.node as HTMLIFrameElement;
+
+      iframe.frameBorder = '0';
+      iframe.scrolling = 'auto';
+
+      iframe.addEventListener('load', () => {
+        // Workaround needed by Firefox, to properly render svg inside
+        // iframes, see https://stackoverflow.com/questions/10177190/
+        // svg-dynamically-added-to-iframe-does-not-render-correctly
+        iframe.contentDocument.open();
+
+        // Insert the subarea into the iframe
+        // We must directly write the html. At this point, subarea doesn't
+        // contain any user content.
+        iframe.contentDocument.write(this._wrapped.node.innerHTML);
+
+        iframe.contentDocument.close();
+
+        let body = iframe.contentDocument.body;
+
+        // Adjust the iframe height automatically
+        iframe.style.height = body.scrollHeight + 'px';
+      });
+    }
+
+    /**
+     * Render a mime model.
+     *
+     * @param model - The mime model to render.
+     *
+     * @returns A promise which resolves when rendering is complete.
+     *
+     * #### Notes
+     * This method may be called multiple times during the lifetime
+     * of the widget to update it if and when new data is available.
+     */
+    renderModel(model: IRenderMime.IMimeModel): Promise<void> {
+      return this._wrapped.renderModel(model).then(() => {
+        let win = (this.node as HTMLIFrameElement).contentWindow;
+        if (win) {
+          win.location.reload();
+        }
+      });
+    }
+
+    private _wrapped: IRenderMime.IRenderer;
   }
 }

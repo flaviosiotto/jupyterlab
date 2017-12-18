@@ -8,8 +8,8 @@ import {
 } from '@jupyterlab/application';
 
 import {
-  ICommandPalette, IThemeManager, ThemeManager,
-  ISplashScreen
+  Dialog, ICommandPalette, IThemeManager, ThemeManager, ISplashScreen,
+  showDialog
 } from '@jupyterlab/apputils';
 
 import {
@@ -17,8 +17,16 @@ import {
 } from '@jupyterlab/coreutils';
 
 import {
-  ServiceManager, ServerConnection
+  IMainMenu
+} from '@jupyterlab/mainmenu';
+
+import {
+  ServiceManager
 } from '@jupyterlab/services';
+
+import {
+  each
+} from '@phosphor/algorithm';
 
 import {
   JSONObject
@@ -27,6 +35,10 @@ import {
 import {
   DisposableDelegate, IDisposable
 } from '@phosphor/disposable';
+
+import {
+  Menu
+} from '@phosphor/widgets';
 
 import {
   activatePalette
@@ -41,6 +53,9 @@ import '../style/index.css';
 namespace CommandIDs {
   export
   const clearStateDB = 'apputils:clear-statedb';
+
+  export
+  const changeTheme = 'apputils:change-theme';
 }
 
 
@@ -65,8 +80,6 @@ class SettingsConnector extends DataConnector<ISettingRegistry.IPlugin, string> 
       data.id = id;
 
       return data;
-    }).catch(reason => {
-      throw this._error(id, (reason as ServerConnection.IError).xhr);
     });
   }
 
@@ -74,24 +87,7 @@ class SettingsConnector extends DataConnector<ISettingRegistry.IPlugin, string> 
    * Save the user setting data in the data connector.
    */
   save(id: string, raw: string): Promise<void> {
-    return this._manager.settings.save(id, raw).catch(reason => {
-      throw this._error(id, (reason as ServerConnection.IError).xhr);
-    });
-  }
-
-  /**
-   * Convert an API `XMLHTTPRequest` error to a simple error.
-   */
-  private _error(id: string, xhr: XMLHttpRequest): Error {
-    let message: string;
-
-    try {
-      message = JSON.parse(xhr.response).message;
-    } catch (error) {
-      message = `Error accessing ${id} HTTP ${xhr.status} ${xhr.statusText}`;
-    }
-
-    return new Error(message);
+    return this._manager.settings.save(id, raw);
   }
 
   private _manager: ServiceManager;
@@ -131,17 +127,77 @@ const settings: JupyterLabPlugin<ISettingRegistry> = {
 const themes: JupyterLabPlugin<IThemeManager> = {
   id: '@jupyterlab/apputils-extension:themes',
   requires: [ISettingRegistry, ISplashScreen],
-  activate: (app: JupyterLab, settingRegistry: ISettingRegistry, splash: ISplashScreen): IThemeManager => {
+  optional: [ICommandPalette, IMainMenu],
+  activate: (app: JupyterLab, settingRegistry: ISettingRegistry, splash: ISplashScreen, palette: ICommandPalette | null, mainMenu: IMainMenu | null): IThemeManager => {
     const host = app.shell;
     const when = app.started;
+    const commands = app.commands;
+
     const manager = new ThemeManager({
       key: themes.id,
-      host, settingRegistry, when
+      host, settingRegistry,
+      url: app.info.urls.themes,
+      when
     });
     const disposable = splash.show();
-    const dispose = () => { disposable.dispose(); };
+    const success = () => { disposable.dispose(); };
+    const failure = (reason: string) => {
+      disposable.dispose();
+      showDialog({
+        title: 'Error Loading Theme',
+        body: reason,
+        buttons: [Dialog.okButton({ label: 'OK' })]
+      });
+    };
 
-    manager.ready.then(dispose, dispose);
+    manager.ready.then(success).catch(failure);
+
+    commands.addCommand(CommandIDs.changeTheme, {
+      label: args => {
+        const theme = args['theme'] as string;
+        return  args['isPalette'] ? `Use ${theme} Theme` : theme;
+      },
+      isToggled: args => args['theme'] === manager.theme,
+      execute: args => {
+        if (args['theme'] === manager.theme) {
+          return;
+        }
+        manager.setTheme(args['theme'] as string);
+      }
+    });
+
+    // If we have a main menu, add the theme manager
+    // to the settings menu.
+    if (mainMenu) {
+      const themeMenu = new Menu({ commands });
+      themeMenu.title.label = 'JupyterLab Theme';
+      manager.ready.then(() => {
+        each(manager.themes, theme => {
+          themeMenu.addItem({
+            command: CommandIDs.changeTheme,
+            args: { isPalette: false, theme: theme }
+          });
+        });
+      });
+      mainMenu.settingsMenu.addGroup([{
+        type: 'submenu' as Menu.ItemType, submenu: themeMenu
+      }], 0);
+    }
+
+    // If we have a command palette, add theme
+    // switching options to it.
+    if (palette) {
+      const category = 'Settings';
+      manager.ready.then(() => {
+        each(manager.themes, theme => {
+          palette.addItem({
+            command: CommandIDs.changeTheme,
+            args: { isPalette: true, theme: theme },
+            category
+          });
+        });
+      });
+    }
 
     return manager;
   },
@@ -175,7 +231,10 @@ const state: JupyterLabPlugin<IStateDB> = {
   autoStart: true,
   provides: IStateDB,
   activate: (app: JupyterLab) => {
-    const state = new StateDB({ namespace: app.info.namespace });
+    const state = new StateDB({
+      namespace: app.info.namespace,
+      when: app.restored.then(() => { /* no-op */ })
+    });
     const version = app.info.version;
     const key = 'statedb:version';
     const fetch = state.fetch(key);

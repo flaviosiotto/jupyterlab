@@ -106,6 +106,7 @@ class DefaultTerminalSession implements TerminalSession.ISession {
     if (this._isDisposed) {
       return;
     }
+
     this._isDisposed = true;
     if (this._ws) {
       this._ws.close();
@@ -123,16 +124,20 @@ class DefaultTerminalSession implements TerminalSession.ISession {
       return;
     }
 
-    let msg: JSONPrimitive[] = [message.type];
-    msg.push(...message.content);
-    let value = JSON.stringify(msg);
-    if (this._isReady && this._ws) {
-      this._ws.send(value);
+    const msg = [message.type, ...message.content];
+    const socket = this._ws;
+    const value = JSON.stringify(msg);
+
+    if (this._isReady && socket) {
+      socket.send(value);
       return;
     }
+
     this.ready.then(() => {
-      if (this._ws) {
-        this._ws.send(value);
+      const socket = this._ws;
+
+      if (socket) {
+        socket.send(value);
       }
     });
   }
@@ -151,34 +156,50 @@ class DefaultTerminalSession implements TerminalSession.ISession {
    * Shut down the terminal session.
    */
   shutdown(): Promise<void> {
-    return DefaultTerminalSession.shutdown(this.name, this.serverSettings);
+    const { name, serverSettings } = this;
+    return DefaultTerminalSession.shutdown(name, serverSettings);
+  }
+
+  /**
+   * Clone the current session object.
+   */
+  clone(): TerminalSession.ISession {
+    const { name, serverSettings } = this;
+    return new DefaultTerminalSession(name, { serverSettings });
   }
 
   /**
    * Connect to the websocket.
    */
   private _initializeSocket(): Promise<void> {
-    let name = this._name;
-    if (this._ws) {
-      this._ws.close();
+    const name = this._name;
+    let socket = this._ws;
+
+    if (socket) {
+      socket.close();
     }
     this._isReady = false;
-    let settings = this.serverSettings;
+
+    const settings = this.serverSettings;
+    const token = this.serverSettings.token;
+
     this._url = Private.getTermUrl(settings.baseUrl, this._name);
     Private.running[this._url] = this;
+
     let wsUrl = URLExt.join(settings.wsUrl, `terminals/websocket/${name}`);
-    let token = this.serverSettings.token;
+
     if (token) {
       wsUrl = wsUrl + `?token=${token}`;
     }
-    this._ws = settings.wsFactory(wsUrl);
+    socket = this._ws = new settings.WebSocket(wsUrl);
 
-    this._ws.onmessage = (event: MessageEvent) => {
+    socket.onmessage = (event: MessageEvent) => {
       if (this._isDisposed) {
         return;
       }
 
-      let data = JSON.parse(event.data) as JSONPrimitive[];
+      const data = JSON.parse(event.data) as JSONPrimitive[];
+
       this._messageReceived.emit({
         type: data[0] as TerminalSession.MessageType,
         content: data.slice(1)
@@ -186,32 +207,34 @@ class DefaultTerminalSession implements TerminalSession.ISession {
     };
 
     return new Promise<void>((resolve, reject) => {
-      if (!this._ws) {
+      const socket = this._ws;
+
+      if (!socket) {
         return;
       }
-      this._ws.onopen = (event: MessageEvent) => {
-        if (this._isDisposed) {
-          return;
+
+      socket.onopen = (event: MessageEvent) => {
+        if (!this._isDisposed) {
+          this._isReady = true;
+          resolve(undefined);
         }
-        this._isReady = true;
-        resolve(void 0);
       };
-      this._ws.onerror = (event: Event) => {
-        if (this._isDisposed) {
-          return;
+
+      socket.onerror = (event: Event) => {
+        if (!this._isDisposed) {
+          reject(event);
         }
-        reject(event);
       };
     });
   }
 
-  private _name: string;
-  private _url: string;
-  private _ws: WebSocket | null = null;
   private _isDisposed = false;
-  private _readyPromise: Promise<void>;
   private _isReady = false;
   private _messageReceived = new Signal<this, TerminalSession.IMessage>(this);
+  private _name: string;
+  private _readyPromise: Promise<void>;
+  private _url: string;
+  private _ws: WebSocket | null = null;
 }
 
 
@@ -242,15 +265,16 @@ namespace DefaultTerminalSession {
       throw Private.unavailableMsg;
     }
     let serverSettings = options.serverSettings || ServerConnection.makeSettings();
-    let request = {
-      url: Private.getServiceUrl(serverSettings.baseUrl),
-      method: 'POST'
-    };
-    return ServerConnection.makeRequest(request, serverSettings).then(response => {
-      if (response.xhr.status !== 200) {
-        throw ServerConnection.makeError(response);
+    let url = Private.getServiceUrl(serverSettings.baseUrl);
+    let init = { method: 'POST' };
+
+    return ServerConnection.makeRequest(url, init, serverSettings).then(response => {
+      if (response.status !== 200) {
+        throw new ServerConnection.ResponseError(response);
       }
-      let name = (response.data as TerminalSession.IModel).name;
+      return response.json();
+    }).then((data: TerminalSession.IModel) => {
+      let name = data.name;
       return new DefaultTerminalSession(name, {...options, serverSettings });
     });
   }
@@ -281,7 +305,7 @@ namespace DefaultTerminalSession {
     let serverSettings = options.serverSettings || ServerConnection.makeSettings();
     let url = Private.getTermUrl(serverSettings.baseUrl, name);
     if (url in Private.running) {
-      return Promise.resolve(Private.running[url]);
+      return Promise.resolve(Private.running[url].clone());
     }
     return listRunning(serverSettings).then(models => {
       let index = ArrayExt.findFirstIndex(models, model => {
@@ -309,17 +333,14 @@ namespace DefaultTerminalSession {
     }
     settings = settings || ServerConnection.makeSettings();
     let url = Private.getServiceUrl(settings.baseUrl);
-    let request = {
-      url,
-      method: 'GET'
-    };
-    return ServerConnection.makeRequest(request, settings).then(response => {
-      if (response.xhr.status !== 200) {
-        throw ServerConnection.makeError(response);
+    return ServerConnection.makeRequest(url, {}, settings).then(response => {
+      if (response.status !== 200) {
+        throw new ServerConnection.ResponseError(response);
       }
-      let data = response.data as TerminalSession.IModel[];
+      return response.json();
+    }).then((data: TerminalSession.IModel[]) => {
       if (!Array.isArray(data)) {
-        throw ServerConnection.makeError(response, 'Invalid terminal data');
+        throw new Error('Invalid terminal data');
       }
       // Update the local data store.
       let urls = toArray(map(data, item => {
@@ -352,23 +373,35 @@ namespace DefaultTerminalSession {
     }
     settings = settings || ServerConnection.makeSettings();
     let url = Private.getTermUrl(settings.baseUrl, name);
-    let request = {
-      url,
-      method: 'DELETE'
-    };
-    return ServerConnection.makeRequest(request, settings).then(response => {
-      if (response.xhr.status !== 204) {
-        throw ServerConnection.makeError(response);
+    let init = { method: 'DELETE' };
+    return ServerConnection.makeRequest(url, init, settings).then(response => {
+      if (response.status === 404) {
+        return response.json().then(data => {
+          console.warn(data['message']);
+          Private.killTerminal(url);
+        });
+      }
+      if (response.status !== 204) {
+        throw new ServerConnection.ResponseError(response);
       }
       Private.killTerminal(url);
-    }).catch(err => {
-      if (err.xhr.status === 404) {
-        let response = JSON.parse(err.xhr.responseText) as any;
-        console.warn(response['message']);
-        Private.killTerminal(url);
-        return;
-      }
-      return Promise.reject(err) as Promise<void>;
+    });
+  }
+
+  /**
+   * Shut down all terminal sessions.
+   *
+   * @param settings - The server settings to use.
+   *
+   * @returns A promise that resolves when all the sessions are shut down.
+   */
+  export
+  function shutdownAll(settings?: ServerConnection.ISettings): Promise<void> {
+    settings = settings || ServerConnection.makeSettings();
+    return listRunning(settings).then(running => {
+      each(running, s => {
+        shutdown(s.name, settings);
+      });
     });
   }
 }

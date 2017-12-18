@@ -95,8 +95,8 @@ def ensure_dev(logger=None):
         yarn_proc.wait()
 
 
-def watch_dev(logger=None):
-    """Run watch mode in a given directory.
+def watch_packages(logger=None):
+    """Run watch mode for the source packages.
 
     Parameters
     ----------
@@ -126,12 +126,31 @@ def watch_dev(logger=None):
     tsf_proc = WatchHelper(['node', YARN_PATH, 'run', 'watch:files'],
         cwd=ts_dir, logger=logger, startup_regex=tsf_regex)
 
+    return [ts_proc, tsf_proc]
+
+
+def watch_dev(logger=None):
+    """Run watch mode in a given directory.
+
+    Parameters
+    ----------
+    logger: :class:`~logger.Logger`, optional
+        The logger instance.
+
+    Returns
+    -------
+    A list of `WatchHelper` objects.
+    """
+    logger = logger or logging.getLogger('jupyterlab')
+
+    package_procs = watch_packages(logger)
+
     # Run webpack watch and wait for compilation.
     wp_proc = WatchHelper(['node', YARN_PATH, 'run', 'watch'],
         cwd=DEV_DIR, logger=logger,
         startup_regex=WEBPACK_EXPECT)
 
-    return [ts_proc, tsf_proc, wp_proc]
+    return package_procs + [wp_proc]
 
 
 def watch(app_dir=None, logger=None):
@@ -210,6 +229,13 @@ def disable_extension(extension, app_dir=None, logger=None):
     """
     handler = _AppHandler(app_dir, logger)
     return handler.toggle_extension(extension, True)
+
+
+def check_extension(extension, app_dir=None, installed=False, logger=None):
+    """Check if a JupyterLab extension is enabled or disabled.
+    """
+    handler = _AppHandler(app_dir, logger)
+    return handler.check_extension(extension, installed)
 
 
 def build_check(app_dir=None, logger=None):
@@ -554,6 +580,60 @@ class _AppHandler(object):
             disabled.remove(extension)
         self._write_page_config(config)
 
+    def check_extension(self, extension, check_installed_only=False):
+        """Check if a lab extension is enabled or disabled
+        """
+        info = self.info
+
+        if extension in info["core_extensions"]:
+            return self._check_core_extension(
+                extension, info, check_installed_only)
+
+        if extension in info["linked_packages"]:
+            self.logger.info('%s:%s' % (extension, GREEN_ENABLED))
+            return True
+
+        return self._check_common_extension(
+            extension, info, check_installed_only)
+
+    def _check_core_extension(self, extension, info, check_installed_only):
+        """Check if a core extension is enabled or disabled
+        """
+        if extension in info['uninstalled_core']:
+            self.logger.info('%s:%s' % (extension, RED_X))
+            return False
+        if check_installed_only:
+            self.logger.info('%s: %s' % (extension, GREEN_OK))
+            return True
+        if extension in info['disabled_core']:
+            self.logger.info('%s: %s' % (extension, RED_DISABLED))
+            return False
+        self.logger.info('%s:%s' % (extension, GREEN_ENABLED))
+        return True
+
+    def _check_common_extension(self, extension, info, check_installed_only):
+        """Check if a common (non-core) extension is enabled or disabled
+        """
+        if extension not in info['extensions']:
+            self.logger.info('%s:%s' % (extension, RED_X))
+            return False
+
+        errors = self._get_extension_compat()[extension]
+        if errors:
+            self.logger.info('%s:%s (compatibility errors)' % (extension, RED_X))
+            return False
+
+        if check_installed_only:
+            self.logger.info('%s: %s' % (extension, GREEN_OK))
+            return True
+
+        if _is_disabled(extension, info['disabled']):
+            self.logger.info('%s: %s' % (extension, RED_DISABLED))
+            return False
+
+        self.logger.info('%s:%s' % (extension, GREEN_ENABLED))
+        return True
+
     def _get_app_info(self):
         """Get information about the app.
         """
@@ -617,9 +697,17 @@ class _AppHandler(object):
 
         for fname in ['index.js', 'webpack.config.js',
                 'yarn.lock', '.yarnrc', 'yarn.js']:
-            if fname == 'yarn.lock' and not overwrite_lock:
+            target = pjoin(staging, fname)
+            if (fname == 'yarn.lock' and os.path.exists(target) and
+                    not overwrite_lock):
                 continue
-            shutil.copy(pjoin(HERE, 'staging', fname), pjoin(staging, fname))
+            shutil.copy(pjoin(HERE, 'staging', fname), target)
+
+        # Ensure a clean templates directory
+        templates = pjoin(staging, 'templates')
+        if osp.exists(templates):
+            shutil.rmtree(templates)
+        shutil.copytree(pjoin(HERE, 'staging', 'templates'), templates)
 
         # Ensure a clean linked packages directory.
         linked_dir = pjoin(staging, 'linked_packages')
@@ -630,10 +718,23 @@ class _AppHandler(object):
         # Template the package.json file.
         # Update the local extensions.
         extensions = self.info['extensions']
+        removed = False
         for (key, source) in self.info['local_extensions'].items():
+            # Handle a local extension that was removed.
+            if key not in extensions:
+                config = self._read_build_config()
+                data = config.setdefault('local_extensions', dict())
+                del data[key]
+                self._write_build_config(config)
+                removed = True
+                continue
             dname = pjoin(app_dir, 'extensions')
             self._update_local(key, source, dname, extensions[key],
                 'local_extensions')
+
+        # Update the list of local extensions if any were removed.
+        if removed:
+            self.info['local_extensions'] = self._get_local_extensions()
 
         # Update the linked packages.
         linked = self.info['linked_packages']
@@ -1064,17 +1165,23 @@ def _validate_extension(data):
 
     files = data['jupyterlab_extracted_files']
     main = data.get('main', 'index.js')
+    if not main.endswith('.js'):
+        main += '.js'
 
     if extension is True:
-        if main not in files:
-            messages.append('Missing extension module "%s"' % main)
-    elif extension and extension not in files:
-        messages.append('Missing extension module "%s"' % extension)
+        extension = main
+    elif extension and not extension.endswith('.js'):
+        extension += '.js'
 
     if mime_extension is True:
-        if main not in files:
-            messages.append('Missing mimeExtension module "%s"' % main)
-    elif mime_extension and mime_extension not in files:
+        mime_extension = main
+    elif mime_extension and not mime_extension.endswith('.js'):
+        mime_extension += '.js'
+
+    if extension and extension not in files:
+        messages.append('Missing extension module "%s"' % extension)
+
+    if mime_extension and mime_extension not in files:
         messages.append('Missing mimeExtension module "%s"' % mime_extension)
 
     if themeDir and not any(f.startswith(themeDir) for f in files):
@@ -1222,3 +1329,7 @@ def _get_core_extensions():
     """
     data = _get_core_data()['jupyterlab']
     return list(data['extensions']) + list(data['mimeExtensions'])
+
+
+if __name__ == '__main__':
+    watch_dev(HERE)

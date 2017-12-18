@@ -1,8 +1,6 @@
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
-import '@phosphor/widgets/style/index.css';
-
 import './application/layoutrestorer.spec';
 import './application/shell.spec';
 
@@ -11,8 +9,8 @@ import './apputils/commandlinker.spec';
 import './apputils/dialog.spec';
 import './apputils/iframe.spec';
 import './apputils/instancetracker.spec';
+import './apputils/mainareawidget.spec';
 import './apputils/sanitizer.spec';
-import './apputils/statedb.spec';
 import './apputils/styling.spec';
 import './apputils/toolbar.spec';
 import './apputils/vdom.spec';
@@ -38,14 +36,15 @@ import './console/panel.spec';
 import './console/widget.spec';
 
 import './coreutils/activitymonitor.spec';
+import './coreutils/markdowncodeblocks.spec';
 import './coreutils/nbformat.spec';
 import './coreutils/pageconfig.spec';
 import './coreutils/path.spec';
 import './coreutils/settingregistry.spec';
+import './coreutils/statedb.spec';
 import './coreutils/time.spec';
 import './coreutils/url.spec';
 import './coreutils/uuid.spec';
-import './coreutils/markdowncodeblocks.spec';
 
 import './csvviewer/toolbar.spec';
 import './csvviewer/widget.spec';
@@ -101,6 +100,6 @@ import './rendermime/latex.spec';
 import './rendermime/factories.spec';
 import './rendermime/mimemodel.spec';
 import './rendermime/outputmodel.spec';
-import './rendermime/rendermime.spec';
+import './rendermime/registry.spec';
 
 import './terminal/terminal.spec';
