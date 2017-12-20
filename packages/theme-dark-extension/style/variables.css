@@ -37,6 +37,7 @@ all of MD as it is not optimized for dense, information rich UIs.
   --jp-border-color1: var(--md-grey-800);
   --jp-border-color2: var(--md-grey-800);
   --jp-border-color3: var(--md-grey-900);
+  --jp-button-border-radius: 2px;
 
   /* UI Fonts
 
@@ -81,7 +82,7 @@ all of MD as it is not optimized for dense, information rich UIs.
   --jp-content-font-color2: var(--md-grey-500);
   --jp-content-font-color3: var(--md-grey-700);
 
-  --jp-content-link-color: var(--md-blue-600);
+  --jp-content-link-color: var(--md-blue-400);
 
   --jp-ui-font-scale-factor: 1.2;
   --jp-ui-font-size0: calc(var(--jp-ui-font-size1)/var(--jp-ui-font-scale-factor));
@@ -142,13 +143,16 @@ all of MD as it is not optimized for dense, information rich UIs.
 
   /* Cell specific styles */
 
+  --jp-cell-collapser-width: 8px;
+  --jp-cell-collapser-min-height: 20px;
+  --jp-cell-collapser-not-active-hover-opacity: 0.6;
   --jp-cell-editor-background: var(--jp-layout-color1);
   --jp-cell-editor-border-color: var(--md-grey-700);
   --jp-cell-editor-box-shadow: inset 0 0 2px var(--md-blue-300);
   --jp-cell-editor-active-background: var(--jp-layout-color0);
   --jp-cell-editor-active-border-color: var(--jp-brand-color1);
   --jp-cell-padding: 5px;
-  --jp-cell-prompt-width: 100px;
+  --jp-cell-prompt-width: 90px;
   --jp-cell-prompt-font-family: 'Roboto Mono', monospace;
   --jp-cell-prompt-letter-spacing: 0px;
   --jp-cell-prompt-opacity: 1.0;
@@ -175,7 +179,7 @@ all of MD as it is not optimized for dense, information rich UIs.
 
   /* Console specific styles */
 
-  --jp-console-background: var(--jp-layout-color1);
+  --jp-console-padding: 10px;
 
   /* Toolbar specific styles */
 

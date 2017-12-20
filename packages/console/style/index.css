@@ -4,11 +4,6 @@
 |----------------------------------------------------------------------------*/
 
 
-:root {
-  --jp-private-console-cell-padding: 5px;
-}
-
-
 .jp-ConsolePanel {
   display: flex;
   flex: 1 1 auto;
@@ -38,20 +33,63 @@
 }
 
 
+.jp-CodeConsole .jp-Cell {
+  padding: var(--jp-cell-padding);
+}
+
+
+/*-----------------------------------------------------------------------------
+| Content (already run cells)
+|----------------------------------------------------------------------------*/
+
 .jp-CodeConsole-content {
-  background-color: var(--jp-console-background);
+  background: var(--jp-layout-color0);
   flex: 1 1 auto;
   overflow: auto;
+  padding: var(--jp-console-padding);
 }
 
 
+.jp-CodeConsole-content .jp-Cell:not(.jp-mod-active) .jp-InputPrompt {
+  opacity: var(--jp-cell-prompt-not-active-opacity);
+  color: var(--jp-cell-prompt-not-active-font-color);
+}
+
+
+.jp-CodeConsole-content .jp-Cell:not(.jp-mod-active) .jp-OutputPrompt {
+  opacity: var(--jp-cell-prompt-not-active-opacity);
+  color: var(--jp-cell-prompt-not-active-font-color);
+}
+
+
+/* This rule is for styling cell run by another activity in this console */
 .jp-CodeConsole-content .jp-Cell.jp-CodeConsole-foreignCell {
+
 }
 
 
-.jp-CodeConsole-content .jp-Cell.jp-CodeCell.jp-mod-collapsed.jp-mod-readOnly {
-  padding-left: calc(2*var(--jp-private-console-cell-padding))
+.jp-CodeConsole-content .jp-InputArea-editor.jp-InputArea-editor {
+  background: transparent;
+  border: 1px solid transparent;
 }
+
+
+.jp-CodeConsole-content .jp-CodeConsole-banner .jp-InputPrompt {
+  display: none;
+}
+
+
+/* collapser is hovered */
+.jp-CodeConsole-content .jp-Cell .jp-Collapser:hover {
+  box-shadow: 0px 0px 2px 0px rgba(0,0,0,0.25);
+  background: var(--jp-brand-color1);
+  opacity: var(--jp-cell-collapser-not-active-hover-opacity);
+}
+
+
+/*-----------------------------------------------------------------------------
+| Input/prompt cell
+|----------------------------------------------------------------------------*/
 
 
 .jp-CodeConsole-input {
@@ -59,32 +97,17 @@
   flex: 0 0 auto;
   overflow: auto;
   border-top: var(--jp-border-width) solid var(--jp-toolbar-border-color);
-  /* We used to have a bottom padding of 8px that was supposedly related to
-   * our implementation of the 2px margin the the panel to let the shadow in the 
-   * dock panel show. But that doesn't seem to be relevant now, so using the 
-   * matching padding. */
-  padding: var(--jp-private-console-cell-padding);
+  padding: var(--jp-cell-padding) var(--jp-console-padding);
   /* This matches the box shadow on the notebook toolbar, eventually we should create
    * CSS variables for this */
   box-shadow: 0px 0.4px 6px 0px rgba(0,0,0,0.1);
-}
-
-
-.jp-CodeConsole-content .jp-InputArea-editor.jp-InputArea-editor {
-  border: var(--jp-border-width) solid var(--jp-cell-editor-active-border-color);
-  box-shadow: var(--jp-input-box-shadow);
-  background-color: var(--jp-cell-editor-active-background);
+  background: var(--jp-layout-color1);
 }
 
 
 .jp-CodeConsole-input .jp-CodeConsole-prompt .jp-InputArea {
   height: 100%;
   min-height: 100%;
-}
-
-
-.jp-CodeConsole-content .jp-CodeConsole-banner .jp-InputPrompt {
-  display: none;
 }
 
 
