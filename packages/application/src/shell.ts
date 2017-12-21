@@ -22,6 +22,10 @@ import {
   Panel, SplitPanel, StackedPanel, TabBar, Title, Widget
 } from '@phosphor/widgets';
 
+import {
+  DocumentRegistry
+} from '@jupyterlab/docregistry';
+
 
 /**
  * The class name added to AppShell instances.
@@ -171,6 +175,20 @@ class ApplicationShell extends Widget {
    */
   get layoutModified(): ISignal<this, void> {
     return this._layoutModified;
+  }
+
+  /**
+   * Whether the left area is collapsed.
+   */
+  get leftCollapsed(): boolean {
+    return !this._leftHandler.sideBar.currentTitle;
+  }
+
+  /**
+   * Whether the left area is collapsed.
+   */
+  get rightCollapsed(): boolean {
+    return !this._rightHandler.sideBar.currentTitle;
   }
 
   /**
@@ -368,7 +386,9 @@ class ApplicationShell extends Widget {
       ref = find(dock.widgets(), value => value.id === options.ref!) || null;
     }
 
-    dock.addWidget(widget, { mode: 'tab-after', ref });
+    let mode = options.mode || 'tab-after';
+
+    dock.addWidget(widget, { mode, ref });
   }
 
   /**
@@ -416,6 +436,30 @@ class ApplicationShell extends Widget {
    */
   collapseRight(): void {
     this._rightHandler.collapse();
+    this._onLayoutModified();
+  }
+
+  /**
+   * Expand the left area.
+   *
+   * #### Notes
+   * This will open the most recently used tab,
+   * or the first tab if there is no most recently used.
+   */
+  expandLeft(): void {
+    this._leftHandler.expand();
+    this._onLayoutModified();
+  }
+
+  /**
+   * Expand the right area.
+   *
+   * #### Notes
+   * This will open the most recently used tab,
+   * or the first tab if there is no most recently used.
+   */
+  expandRight(): void {
+    this._rightHandler.expand();
     this._onLayoutModified();
   }
 
@@ -755,14 +799,7 @@ namespace ApplicationShell {
    * The options for adding a widget to a side area of the shell.
    */
   export
-  interface IMainAreaOptions {
-    /**
-     * The reference widget id for the insert location.
-     *
-     * The default is `null`.
-     */
-    ref?: string | null;
-  }
+  interface IMainAreaOptions extends DocumentRegistry.IOpenOptions {}
 }
 
 
@@ -825,6 +862,7 @@ namespace Private {
       this._stackedPanel = new StackedPanel();
       this._sideBar.hide();
       this._stackedPanel.hide();
+      this._lastCurrent = null;
       this._sideBar.currentChanged.connect(this._onCurrentChanged, this);
       this._sideBar.tabActivateRequested.connect(this._onTabActivateRequested, this);
       this._stackedPanel.widgetRemoved.connect(this._onWidgetRemoved, this);
@@ -842,6 +880,21 @@ namespace Private {
      */
     get stackedPanel(): StackedPanel {
       return this._stackedPanel;
+    }
+
+    /**
+     * Expand the sidebar.
+     *
+     * #### Notes
+     * This will open the most recently used tab, or the first tab
+     * if there is no most recently used.
+     */
+    expand(): void {
+      const previous =
+        this._lastCurrent || (this._items.length > 0 && this._items[0].widget);
+      if (previous) {
+        this.activate(previous.id);
+      }
     }
 
     /**
@@ -958,6 +1011,7 @@ namespace Private {
       if (newWidget) {
         newWidget.show();
       }
+      this._lastCurrent = newWidget || oldWidget;
       if (newWidget) {
         const id = newWidget.id;
         document.body.setAttribute(`data-${this._side}-sidebar-widget`, id);
@@ -978,6 +1032,9 @@ namespace Private {
      * Handle the `widgetRemoved` signal from the stacked panel.
      */
     private _onWidgetRemoved(sender: StackedPanel, widget: Widget): void {
+      if (widget === this._lastCurrent) {
+        this._lastCurrent = null;
+      }
       ArrayExt.removeAt(this._items, this._findWidgetIndex(widget));
       this._sideBar.removeTab(widget.title);
       this._refreshVisibility();
@@ -987,6 +1044,7 @@ namespace Private {
     private _side: string;
     private _sideBar: TabBar<Widget>;
     private _stackedPanel: StackedPanel;
+    private _lastCurrent: Widget | null;
   }
 
 }

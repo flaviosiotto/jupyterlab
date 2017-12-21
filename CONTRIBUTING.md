@@ -7,7 +7,7 @@ Please take a look at the Contributor documentation, familiarize yourself with
 using the Jupyter Notebook, and introduce yourself on the mailing list and share
 what area of the project you are interested in working on.
 
-We have labeled some issues as [sprint friendly](https://github.com/jupyterlab/jupyterlab/issues?q=is%3Aopen+is%3Aissue+label%3Asprint-friendly)
+We have labeled some issues as [good first issue](https://github.com/jupyterlab/jupyterlab/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 that we believe are good examples of small, self contained changes.
 We encourage those that are new to the code base to implement and/or ask
 questions about these issues.
@@ -50,13 +50,13 @@ JupyterLab requires Jupyter Notebook version 4.3 or later.
 If you use ``conda``, you can install notebook using:
 
 ```bash
-conda install notebook
+conda install -c conda-forge notebook
 ```
 
 You may also want to install `nb_conda_kernels` to have a kernel option for different [conda environments](http://conda.pydata.org/docs/using/envs.html)
 
 ```bash
-conda install nb_conda_kernels
+conda install -c conda-forge nb_conda_kernels
 ```
 
 If you use `pip` you can install notebook using:
@@ -78,14 +78,14 @@ jlpm install
 jlpm run build  # Build the dev mode assets (optional)
 jlpm run build:core  # Build the core mode assets (optional)
 jupyter lab build  # Build the app dir assets (optional)
-jupyter serverextension enable --py jupyterlab (optional)
+jupyter serverextension enable --py jupyterlab  # (optional)
 ```
 
 Notes:
 
-* The `jlpm` command is a JupyterLab-provided, locked version of the [yarn](https://yarnpkg.com/en/) package manager.  If you have `yarn` installed 
-already, you can use the `yarn` command when developing, and it will use the 
-local version of `yarn` in `jupyterlab/yarn.js` when run in the repository or 
+* The `jlpm` command is a JupyterLab-provided, locked version of the [yarn](https://yarnpkg.com/en/) package manager.  If you have `yarn` installed
+already, you can use the `yarn` command when developing, and it will use the
+local version of `yarn` in `jupyterlab/yarn.js` when run in the repository or
 a built application directory.
 
 * At times, it may be necessary to clean your local repo with the command `jlpm run clean:slate`.  This will clean the repository, and re-install and
@@ -196,7 +196,7 @@ jupyter lab --dev-mode --watch
 ```
 
 You can also run `jupyter lab --dev-mode --fast-watch` to skip
-the initial build if the assets are already built.  
+the initial build if the assets are already built.
 
 
 ## Build Utilities
