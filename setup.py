@@ -20,9 +20,9 @@ from setuptools.command.develop import develop
 
 
 NAME = 'jupyterlab'
-DESCRIPTION = 'An alpha preview of the JupyterLab notebook server extension.'
+DESCRIPTION = 'The JupyterLab notebook server extension.'
 LONG_DESCRIPTION = """
-This is an alpha preview of JupyterLab. It is not ready for general usage yet.
+This is a beta release of JupyterLab.
 Development happens on https://github.com/jupyter/jupyterlab, with chat on
 https://gitter.im/jupyter/jupyterlab.
 """
@@ -60,7 +60,7 @@ def check_assets():
         if skip_npm:
             return
         run(npm, cwd=HERE)
- 
+
     for t in targets:
         if not os.path.exists(pjoin(HERE, NAME, t)):
             msg = ('Missing file: %s, `build:prod` script did not complete '
@@ -103,7 +103,7 @@ setup_args = dict(
     platforms        = "Linux, Mac OS X, Windows",
     keywords         = ['ipython', 'jupyter', 'Web'],
     classifiers      = [
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
         'Intended Audience :: Science/Research',
@@ -120,7 +120,7 @@ setup_args = dict(
 
 setup_args['install_requires'] = [
     'notebook>=4.3.1',
-    'jupyterlab_launcher>=0.8.0,<0.9.0',
+    'jupyterlab_launcher>=0.9.0,<0.10.0',
     'ipython_genutils',
     'futures;python_version<"3.0"',
     'subprocess32;python_version<"3.0"'

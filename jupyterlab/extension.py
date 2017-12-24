@@ -30,7 +30,7 @@ def load_jupyter_server_extension(nbapp):
     """
     # Delay imports to speed up jlpmapp
     from jupyterlab_launcher import add_handlers, LabConfig
-    from notebook.utils import url_path_join as ujoin
+    from notebook.utils import url_path_join as ujoin, url_escape
     from tornado.ioloop import IOLoop
     from .build_handler import build_path, Builder, BuildHandler
     from .commands import (
@@ -45,10 +45,10 @@ def load_jupyter_server_extension(nbapp):
     app_dir = getattr(nbapp, 'app_dir', get_app_dir())
 
     # Print messages.
-    logger.info('JupyterLab alpha preview extension loaded from %s' % HERE)
+    logger.info('JupyterLab beta preview extension loaded from %s' % HERE)
     logger.info('JupyterLab application directory is %s' % app_dir)
 
-    config.app_name = 'JupyterLab'
+    config.app_name = 'JupyterLab Beta'
     config.app_namespace = 'jupyterlab'
     config.page_url = '/lab'
     config.cache_files = True
@@ -81,6 +81,12 @@ def load_jupyter_server_extension(nbapp):
     page_config['buildCheck'] = not core_mode and not dev_mode
     page_config['token'] = nbapp.token
     page_config['devMode'] = dev_mode
+
+    if nbapp.file_to_run:
+        relpath = os.path.relpath(nbapp.file_to_run, nbapp.notebook_dir)
+        uri = url_escape(ujoin('/lab/tree', *relpath.split(os.sep)))
+        nbapp.default_url = uri
+        nbapp.file_to_run = ''
 
     if core_mode:
         app_dir = HERE
@@ -120,15 +126,12 @@ def load_jupyter_server_extension(nbapp):
 
         config.cache_files = False
 
-    add_handlers(web_app, config)
-
     base_url = web_app.settings['base_url']
     build_url = ujoin(base_url, build_path)
     builder = Builder(logger, core_mode, app_dir)
     build_handler = (build_url, BuildHandler, {'builder': builder})
 
-    page_config['themePath'] = ujoin(base_url, '/lab/api/themes')
-    if 'rc' in __version__:
-        raise ValueError('remove the theme path shim')
-
+    # Must add before the launcher handlers to avoid shadowing.
     web_app.add_handlers(".*$", [build_handler])
+
+    add_handlers(web_app, config)
