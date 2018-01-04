@@ -1,0 +1,356 @@
+// Copyright (c) Jupyter Development Team.
+// Distributed under the terms of the Modified BSD License.
+
+import {
+  Message
+} from '@phosphor/messaging';
+
+import {
+  Widget
+} from '@phosphor/widgets';
+
+import {
+  TaskbookActions
+} from './actions';
+
+import {
+  showDialog, Dialog, Styling, Toolbar, ToolbarButton
+} from '@jupyterlab/apputils';
+
+import {
+  tbformat
+} from '@jupyterlab/taskbookutils';
+
+import {
+  TaskbookPanel
+} from './panel';
+
+import {
+  Taskbook
+} from './widget';
+
+
+/**
+ * The class name added to toolbar save button.
+ */
+const TOOLBAR_SAVE_CLASS = 'jp-SaveIcon';
+
+/**
+ * The class name added to toolbar insert button.
+ */
+const TOOLBAR_INSERT_CLASS = 'jp-AddIcon';
+
+/**
+ * The class name added to toolbar cut button.
+ */
+const TOOLBAR_CUT_CLASS = 'jp-CutIcon';
+
+/**
+ * The class name added to toolbar copy button.
+ */
+const TOOLBAR_COPY_CLASS = 'jp-CopyIcon';
+
+/**
+ * The class name added to toolbar paste button.
+ */
+const TOOLBAR_PASTE_CLASS = 'jp-PasteIcon';
+
+/**
+ * The class name added to toolbar run button.
+ */
+const TOOLBAR_RUN_CLASS = 'jp-RunIcon';
+
+/**
+ * The class name added to toolbar task type dropdown wrapper.
+ */
+const TOOLBAR_TASKTYPE_CLASS = 'jp-Taskbook-toolbarTaskType';
+
+/**
+ * The class name added to toolbar task type dropdown.
+ */
+const TOOLBAR_TASKTYPE_DROPDOWN_CLASS = 'jp-Taskbook-toolbarTaskTypeDropdown';
+
+
+/**
+ * A namespace for the default toolbar items.
+ */
+export
+namespace ToolbarItems {
+  /**
+   * Create save button toolbar item.
+   */
+  export
+  function createSaveButton(panel: TaskbookPanel): ToolbarButton {
+    return new ToolbarButton({
+      className: TOOLBAR_SAVE_CLASS,
+      onClick: () => {
+        if (panel.context.model.readOnly) {
+          return showDialog({
+            title: 'Cannot Save',
+            body: 'Document is read-only',
+            buttons: [Dialog.okButton()]
+          });
+        }
+        panel.context.save().then(() => {
+          if (!panel.isDisposed) {
+            return panel.context.createCheckpoint();
+          }
+        });
+      },
+      tooltip: 'Save the taskbook contents and create checkpoint'
+    });
+  }
+
+  /**
+   * Create an insert toolbar item.
+   */
+  export
+  function createInsertButton(panel: TaskbookPanel): ToolbarButton {
+    return new ToolbarButton({
+      className: TOOLBAR_INSERT_CLASS,
+      onClick: () => {
+        TaskbookActions.insertBelow(panel.taskbook);
+      },
+      tooltip: 'Insert a task below'
+    });
+  }
+
+  /**
+   * Create a cut toolbar item.
+   */
+  export
+  function createCutButton(panel: TaskbookPanel): ToolbarButton {
+    return new ToolbarButton({
+      className: TOOLBAR_CUT_CLASS,
+      onClick: () => {
+        TaskbookActions.cut(panel.taskbook);
+      },
+      tooltip: 'Cut the selected task(s)'
+    });
+  }
+
+  /**
+   * Create a copy toolbar item.
+   */
+  export
+  function createCopyButton(panel: TaskbookPanel): ToolbarButton {
+    return new ToolbarButton({
+      className: TOOLBAR_COPY_CLASS,
+      onClick: () => {
+        TaskbookActions.copy(panel.taskbook);
+      },
+      tooltip: 'Copy the selected task(s)'
+    });
+  }
+
+  /**
+   * Create a paste toolbar item.
+   */
+  export
+  function createPasteButton(panel: TaskbookPanel): ToolbarButton {
+    return new ToolbarButton({
+      className: TOOLBAR_PASTE_CLASS,
+      onClick: () => {
+        TaskbookActions.paste(panel.taskbook);
+      },
+      tooltip: 'Paste task(s) from the clipboard'
+    });
+  }
+
+  /**
+   * Create a run toolbar item.
+   */
+  export
+  function createRunButton(panel: TaskbookPanel): ToolbarButton {
+    return new ToolbarButton({
+      className: TOOLBAR_RUN_CLASS,
+      onClick: () => {
+        TaskbookActions.run(panel.taskbook, panel.session);
+      },
+      tooltip: 'Run the taskbook(s)'
+    });
+  }
+
+  /**
+   * Create a task type switcher item.
+   *
+   * #### Notes
+   * It will display the type of the current active task.
+   * If more than one cell is selected but are of different types,
+   * it will display `'-'`.
+   * When the user changes the cell type, it will change the
+   * cell types of the selected cells.
+   * It can handle a change to the context.
+   */
+  export
+  function createTaskTypeItem(panel: TaskbookPanel): Widget {
+    return new TaskTypeSwitcher(panel.taskbook);
+  }
+
+  /**
+   * Add the default items to the panel toolbar.
+   */
+  export
+  function populateDefaults(panel: TaskbookPanel): void {
+    let toolbar = panel.toolbar;
+    toolbar.addItem('save', createSaveButton(panel));
+    toolbar.addItem('insert', createInsertButton(panel));
+    toolbar.addItem('cut', createCutButton(panel));
+    toolbar.addItem('copy', createCopyButton(panel));
+    toolbar.addItem('paste', createPasteButton(panel));
+    toolbar.addItem('run', createRunButton(panel));
+    toolbar.addItem('interrupt', Toolbar.createInterruptButton(panel.session));
+    toolbar.addItem('restart', Toolbar.createRestartButton(panel.session));
+    toolbar.addItem('taskType', createTaskTypeItem(panel));
+    toolbar.addItem('spacer', Toolbar.createSpacerItem());
+    toolbar.addItem('kernelName', Toolbar.createKernelNameItem(panel.session));
+    toolbar.addItem('kernelStatus', Toolbar.createKernelStatusItem(panel.session));
+  }
+}
+
+
+/**
+ * A toolbar widget that switches task types.
+ */
+class TaskTypeSwitcher extends Widget {
+  /**
+   * Construct a new task type switcher.
+   */
+  constructor(widget: Taskbook) {
+    super({ node: createTaskTypeSwitcherNode() });
+    this.addClass(TOOLBAR_TASKTYPE_CLASS);
+
+    this._select = this.node.firstChild as HTMLSelectElement;
+    Styling.wrapSelect(this._select);
+    this._wildCard = document.createElement('option');
+    this._wildCard.value = '-';
+    this._wildCard.textContent = '-';
+    this._taskbook = widget;
+
+    // Set the initial value.
+    if (widget.model) {
+      this._updateValue();
+    }
+
+    // Follow the type of the active task.
+    widget.activeTaskChanged.connect(this._updateValue, this);
+
+    // Follow a change in the selection.
+    widget.selectionChanged.connect(this._updateValue, this);
+  }
+
+  /**
+   * Handle the DOM events for the widget.
+   *
+   * @param event - The DOM event sent to the widget.
+   *
+   * #### Notes
+   * This method implements the DOM `EventListener` interface and is
+   * called in response to events on the dock panel's node. It should
+   * not be called directly by user code.
+   */
+  handleEvent(event: Event): void {
+    switch (event.type) {
+    case 'change':
+      this._evtChange(event);
+      break;
+    case 'keydown':
+      this._evtKeyDown(event as KeyboardEvent);
+      break;
+    default:
+      break;
+    }
+  }
+
+  /**
+   * Handle `after-attach` messages for the widget.
+   */
+  protected onAfterAttach(msg: Message): void {
+    this._select.addEventListener('change', this);
+    this._select.addEventListener('keydown', this);
+  }
+
+  /**
+   * Handle `before-detach` messages for the widget.
+   */
+  protected onBeforeDetach(msg: Message): void {
+    this._select.removeEventListener('change', this);
+    this._select.removeEventListener('keydown', this);
+  }
+
+  /**
+   * Handle `changed` events for the widget.
+   */
+  private _evtChange(event: Event): void {
+    let select = this._select;
+    let widget = this._taskbook;
+    if (select.value === '-') {
+      return;
+    }
+    if (!this._changeGuard) {
+      let value = select.value as tbformat.TaskType;
+      TaskbookActions.changeTaskType(widget, value);
+      widget.activate();
+    }
+  }
+
+  /**
+   * Handle `keydown` events for the widget.
+   */
+  private _evtKeyDown(event: KeyboardEvent): void {
+    if (event.keyCode === 13) {  // Enter
+      this._taskbook.activate();
+    }
+  }
+
+  /**
+   * Update the value of the dropdown from the widget state.
+   */
+  private _updateValue(): void {
+    let widget = this._taskbook;
+    let select = this._select;
+    if (!widget.activeTask) {
+      return;
+    }
+    let mType: string = widget.activeTask.model.type;
+    for (let i = 0; i < widget.widgets.length; i++) {
+      let child = widget.widgets[i];
+      if (widget.isSelected(child)) {
+        if (child.model.type !== mType) {
+          mType = '-';
+          select.appendChild(this._wildCard);
+          break;
+        }
+      }
+    }
+    if (mType !== '-') {
+      select.remove(3);
+    }
+    this._changeGuard = true;
+    select.value = mType;
+    this._changeGuard = false;
+  }
+
+  private _changeGuard = false;
+  private _wildCard: HTMLOptionElement = null;
+  private _select: HTMLSelectElement = null;
+  private _taskbook: Taskbook = null;
+}
+
+
+/**
+ * Create the node for the cell type switcher.
+ */
+function createTaskTypeSwitcherNode(): HTMLElement {
+  let div = document.createElement('div');
+  let select = document.createElement('select');
+  for (let t of ['Code', 'Markdown', 'Raw']) {
+    let option = document.createElement('option');
+    option.value = t.toLowerCase();
+    option.textContent = t;
+    select.appendChild(option);
+  }
+  select.className = TOOLBAR_TASKTYPE_DROPDOWN_CLASS;
+  div.appendChild(select);
+  return div;
+}
