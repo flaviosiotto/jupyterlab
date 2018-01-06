@@ -174,7 +174,7 @@ function createEditMenu(app: JupyterLab, menu: EditMenu): void {
   });
   commands.addCommand(CommandIDs.clearAll, {
     label: () => {
-      const noun = Private.delegateLabel(app, menu.clearers, 'noun');
+      const noun = Private.delegateLabel(app, menu.clearers, 'pluralNoun');
       const enabled = Private.delegateEnabled(app, menu.clearers, 'clearAll')();
       return `Clear All${enabled ? ` ${noun}` : ''}`;
     },
@@ -323,7 +323,7 @@ function createKernelMenu(app: JupyterLab, menu: KernelMenu): void {
   });
 
   commands.addCommand(CommandIDs.shutdownAllKernels, {
-    label: 'Shutdown All Kernels...',
+    label: 'Shutdown All Kernels…',
     isEnabled: () => {
       return app.serviceManager.sessions.running().next() !== undefined;
     },
@@ -396,8 +396,8 @@ function createViewMenu(app: JupyterLab, menu: ViewMenu): void {
 
   // Add the command for toggling single-document mode.
   menu.addGroup([
-    { command: 'application:toggle-mode' },
-    { command: 'application:toggle-presentation-mode'}
+    { command: 'application:toggle-presentation-mode'},
+    { command: 'application:toggle-mode' }
   ], 1000);
 }
 
