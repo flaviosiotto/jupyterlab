@@ -78,7 +78,6 @@ jlpm install
 jlpm run build  # Build the dev mode assets (optional)
 jlpm run build:core  # Build the core mode assets (optional)
 jupyter lab build  # Build the app dir assets (optional)
-jupyter serverextension enable --py jupyterlab  # (optional)
 ```
 
 Notes:
@@ -101,7 +100,11 @@ jupyterlab_launcher` to get the latest version.
   Typescript code when debugging. However, it takes a bit longer to build the sources, so is used only to build for production
   by default.
 
-```
+If you are using a version of Jupyter Notebook earlier than 5.3, then
+you must also run the following command to enable the JupyterLab
+server extension:
+
+```bash
 jupyter serverextension enable --py --sys-prefix jupyterlab
 ```
 
@@ -173,6 +176,26 @@ To run a specific example, change to the examples directory (i.e.
 python main.py
 ```
 
+## Debugging
+
+All methods of building JupyterLab produce source maps.  The source maps
+should be available in the source files view of your browser's development
+tools under the `webpack://` header.
+
+When running JupyterLab normally, expand the `~` header to see the source maps for individual packages.
+
+When running in `--dev-mode`, the core packages are available under
+`packages/`, while the third party libraries are available under `~`.
+Note: it is recommended to use `jupyter lab --watch --dev-mode` while
+debugging.
+
+When running a test, the packages will be available at the top level
+(e.g. `application/src`), and the current set of test files available under
+`/src`.  Note: it is recommended to use `jlpm run watch` in the test folder
+while debugging (see [above](#Build and run the tests) for more info) on
+test options.
+
+
 ----
 
 ## High level Architecture
@@ -229,9 +252,6 @@ To have the system build after each source file change, run:
 jupyter lab --dev-mode --watch
 ```
 
-You can also run `jupyter lab --dev-mode --fast-watch` to skip
-the initial build if the assets are already built.
-
 
 ## Build Utilities
 
@@ -271,3 +291,5 @@ https://jupyterlab-tutorial.readthedocs.io/en/latest/index.html.
 
 - The npm modules are fully compatible with Node/Babel/ES6/ES5. Simply
 omit the type declarations when using a language other than TypeScript.
+
+- For more information, read the [documentation](http://jupyterlab.readthedocs.io/en/latest/).

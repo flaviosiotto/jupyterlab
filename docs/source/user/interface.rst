@@ -1,3 +1,5 @@
+.. _interface:
+
 The JupyterLab Interface
 ------------------------
 
@@ -6,13 +8,15 @@ exploratory computing. While JupyterLab has many features found in
 traditional integrated development environments (IDEs), it remains
 focused on interactive, exploratory computing.
 
-The JupyterLab interface consists of a main work area containing tabs of
-documents and activities, a collapsible left sidebar, and a menu bar.
-The left sidebar contains a file browser, the list of running kernels
-and terminals, the command palette, the notebook cell tools inspector,
-and the tabs list.
+The JupyterLab interface consists of a :ref:`main work area <main_area>` containing tabs of
+documents and activities, a collapsible :ref:`left sidebar <left_sidebar>`, and a :ref:`menu bar <menu_bar>`.
+The left sidebar contains a :ref:`file browser <working_with_files>`, the :ref:`list of running kernels
+and terminals <running>`, the :ref:`command palette <commands>`, the :ref:`notebook cell tools inspector <notebook>`,
+and the :ref:`tabs list <tabs>`.
 
-[screenshot]
+.. image:: images/interface_jupyterlab.png
+
+.. _menu_bar:
 
 Menu Bar
 ~~~~~~~~
@@ -32,8 +36,10 @@ default menus are:
 -  Settings: common settings and an advanced settings editor
 -  Help: a list of JupyterLab and kernel help links
 
-JupyterLab extensions can also create new top-level menus in the menu
+:ref:`JupyterLab extensions <user_extensions>` can also create new top-level menus in the menu
 bar.
+
+.. _left_sidebar:
 
 Left Sidebar
 ~~~~~~~~~~~~
@@ -42,7 +48,8 @@ The left sidebar contains a number of commonly-used tabs, such as a file
 browser, a list of running kernels and terminals, the command palette,
 and a list of tabs in the main area:
 
-[screenshot]
+.. image:: images/interface_left.png
+   :align: center
 
 The left sidebar can be collapsed or expanded by clicking on the active
 sidebar tab:
@@ -50,6 +57,8 @@ sidebar tab:
 [animation]
 
 JupyterLab extensions can add additional panels to the left sidebar.
+
+.. _main_area:
 
 Main area
 ~~~~~~~~~
@@ -63,7 +72,7 @@ consoles, etc.) into panels of tabs that can be resized or subdivided:
 The main area has a single current activity. The tab for this activity
 is marked with a colored top border (blue by default).
 
-[screenshot]
+.. _tabs:
 
 Tabs and Single Document Mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -71,11 +80,13 @@ Tabs and Single Document Mode
 The Tabs panel in the left sidebar lists the open documents or
 activities in the main area:
 
-[screenshot]
+.. image:: images/interface_tabs.png
+   :align: center
 
 The same information is also available in the Tabs Menu:
 
-[screenshot]
+.. image:: images/interface_tabs_menu.png
+   :align: center
 
 It is often useful to focus on a single document or activity without
 closing other tabs in the main area. Single Document Mode toggles the
@@ -84,9 +95,7 @@ view of the main area to show only a single tab at a time:
 [animation]
 
 When you leave Single Document Mode, the original layout of the main
-area is restored:
-
-[animation]
+area is restored.
 
 Context Menus
 ~~~~~~~~~~~~~
