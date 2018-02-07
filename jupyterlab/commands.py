@@ -195,6 +195,7 @@ def watch(app_dir=None, logger=None):
     -------
     A list of processes to run asynchronously.
     """
+    _node_check()
     handler = _AppHandler(app_dir, logger)
     return handler.watch()
 
@@ -204,6 +205,7 @@ def install_extension(extension, app_dir=None, logger=None):
 
     The extension is first validated.
     """
+    _node_check()
     handler = _AppHandler(app_dir, logger)
     return handler.install_extension(extension)
 
@@ -211,6 +213,7 @@ def install_extension(extension, app_dir=None, logger=None):
 def uninstall_extension(name, app_dir=None, logger=None):
     """Uninstall an extension by name or path.
     """
+    _node_check()
     handler = _AppHandler(app_dir, logger)
     return handler.uninstall_extension(name)
 
@@ -233,6 +236,7 @@ def build(app_dir=None, name=None, version=None, public_url=None,
         clean_staging=False):
     """Build the JupyterLab application.
     """
+    _node_check()
     handler = _AppHandler(app_dir, logger, kill_event=kill_event)
     return handler.build(name=name, version=version, public_url=public_url,
                   command=command, clean_staging=clean_staging)
@@ -271,6 +275,7 @@ def build_check(app_dir=None, logger=None):
 
     Returns a list of messages.
     """
+    _node_check()
     handler = _AppHandler(app_dir, logger)
     return handler.build_check()
 
@@ -721,7 +726,6 @@ class _AppHandler(object):
 
         # Look for mismatched version.
         pkg_path = pjoin(staging, 'package.json')
-        overwrite_lock = False
 
         if osp.exists(pkg_path):
             with open(pkg_path) as fid:
@@ -729,17 +733,18 @@ class _AppHandler(object):
             if data['jupyterlab'].get('version', '') != version:
                 shutil.rmtree(staging)
                 os.makedirs(staging)
-            else:
-                overwrite_lock = False
 
         for fname in ['index.js', 'webpack.config.js',
-                'webpack.prod.config.js',
-                'yarn.lock', '.yarnrc', 'yarn.js']:
+                      'webpack.prod.config.js',
+                      '.yarnrc', 'yarn.js']:
             target = pjoin(staging, fname)
-            if (fname == 'yarn.lock' and os.path.exists(target) and
-                    not overwrite_lock):
-                continue
             shutil.copy(pjoin(HERE, 'staging', fname), target)
+
+        # Remove an existing yarn.lock file
+        # Because otherwise we can end up with unwanted duplicates
+        # cf https://github.com/yarnpkg/yarn/issues/3967
+        if osp.exists(pjoin(staging, 'yarn.lock')):
+            os.remove(pjoin(staging, 'yarn.lock'))
 
         # Ensure a clean templates directory
         templates = pjoin(staging, 'templates')
@@ -1157,6 +1162,17 @@ class _AppHandler(object):
         kwargs['kill_event'] = self.kill_event
         proc = Process(cmd, **kwargs)
         return proc.wait()
+
+
+def _node_check():
+    """Check for the existence of nodejs with the correct version.
+    """
+    try:
+        proc = Process(['node', 'node-version-check.js'], cwd=HERE, quiet=True)
+        proc.wait()
+    except Exception:
+        msg = 'Please install nodejs 5+ and npm before continuing. nodejs may be installed using conda or directly from the nodejs website.'
+        raise ValueError(msg)
 
 
 def _normalize_path(extension):

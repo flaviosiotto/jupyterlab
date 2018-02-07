@@ -7,7 +7,7 @@ Please take a look at the Contributor documentation, familiarize yourself with
 using Jupyter Notebook, and introduce yourself on the mailing list and share
 what area of the project you are interested in working on.
 
-We have labeled some issues as [good first issue](https://github.com/jupyterlab/jupyterlab/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
+We have labeled some issues as [good first issue](https://github.com/jupyterlab/jupyterlab/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22) or [help wanted](https://github.com/jupyterlab/jupyterlab/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
 that we believe are good examples of small, self-contained changes.
 We encourage those that are new to the code base to implement and/or ask
 questions about these issues.
@@ -16,7 +16,7 @@ questions about these issues.
 ## General Guidelines
 
 For general documentation about contributing to Jupyter projects, see the
-[Project Jupyter Contributor Documentation](https://jupyter.readthedocs.io/en/latest/contributor/content-contributor.html).
+[Project Jupyter Contributor Documentation](https://jupyter.readthedocs.io/en/latest/contributor/content-contributor.html) and [Code of Conduct](https://github.com/jupyter/governance/blob/master/conduct/code_of_conduct.md).
 
 All source code is written in [TypeScript](http://www.typescriptlang.org/Handbook). See the [Style Guide](https://github.com/jupyterlab/jupyterlab/wiki/TypeScript-Style-Guide).
 
@@ -26,7 +26,7 @@ All source code is written in [TypeScript](http://www.typescriptlang.org/Handboo
 ### Installing Node.js and jlpm
 
 Building JupyterLab from its GitHub source code requires Node.js version
-4+.
+5+.
 
 If you use ``conda``, you can get it with:
 
@@ -108,6 +108,8 @@ server extension:
 jupyter serverextension enable --py --sys-prefix jupyterlab
 ```
 
+For installation instructions to write documentation, please see [Writing Documentation](#writing-documentation)
+
 ### Run JupyterLab
 
 Start JupyterLab in development mode:
@@ -121,7 +123,7 @@ built in the dev-installed Python package.  When running in dev mode, a red
 stripe will appear at the top of the page; this is to indicate running
 an unreleased version.
 
-### Build and run the tests
+### Build and Run the Tests
 
 ```bash
 jlpm run build:test
@@ -175,7 +177,6 @@ To run a specific example, change to the examples directory (i.e.
 ```bash
 python main.py
 ```
-
 ## Debugging
 
 All methods of building JupyterLab produce source maps.  The source maps
@@ -192,8 +193,7 @@ debugging.
 When running a test, the packages will be available at the top level
 (e.g. `application/src`), and the current set of test files available under
 `/src`.  Note: it is recommended to use `jlpm run watch` in the test folder
-while debugging (see [above](#Build and run the tests) for more info) on
-test options.
+while debugging test options.  See [above](#build-and-run-the-tests) for more info.
 
 
 ----
@@ -205,7 +205,7 @@ The JupyterLab application is made up of two major parts:
 - an npm package
 - a Jupyter server extension (Python package)
 
-Each part is named `jupyterlab`. The [developer tutorial documentation](https://jupyterlab-tutorial.readthedocs.io/en/latest/index.html)
+Each part is named `jupyterlab`. The [developer tutorial documentation](https://jupyterlab.readthedocs.io/en/latest/index.html)
 provides additional architecture information.
 
 ## The NPM Packages
@@ -228,6 +228,35 @@ jlpm run build:packages
 ```bash
 jlpm run clean
 jlpm run build:packages
+```
+
+## [Writing Documentation](#writing-documenation)
+
+Documentation is written in Markdown and reStructuredText.  In particular, the documentation on our Read the Docs page is written in reStructuredText. To ensure that the Read the Docs page builds, you'll need to install the documentation dependencies with `conda`.  These dependencies are located in `docs/environment.yml`.  You can install the dependencies for building the documentation by creating a new conda environment:
+
+```bash
+conda env create -f docs/environment.yml
+```
+
+The Developer Documentation includes a [guide](http://jupyterlab.readthedocs.io/en/latest/developer/documentation.html) to writing documentation including writing style, naming conventions, keyboard shortcuts, and screenshots.
+
+To test the docs run:
+
+```
+py.test --check-links -k .md . || py.test --check-links -k .md --lf .
+```
+
+The Read the Docs pages can be built using `make`:
+
+```bash
+cd docs
+make html
+```
+
+Or with `jlpm`:
+
+```
+jlpm run docs
 ```
 
 ## The Jupyter Server Extension
@@ -287,7 +316,7 @@ run `jupyter lab --core-mode`.  This is the core application that will
 be shipped.
 
 - If working with extensions, see the extension documentation on
-https://jupyterlab-tutorial.readthedocs.io/en/latest/index.html.
+https://jupyterlab.readthedocs.io/en/latest/index.html.
 
 - The npm modules are fully compatible with Node/Babel/ES6/ES5. Simply
 omit the type declarations when using a language other than TypeScript.

@@ -17,15 +17,16 @@
 An extensible environment for interactive and reproducible computing, based on the
 Jupyter Notebook and Architecture.
 
-JupyterLab is the next generation user interface for Project Jupyter. It offers all the
-familiar building blocks of the classic Jupyter Notebook (notebook, terminal, text editor,
-file browser, rich outputs, etc.) in a flexible and powerful user inteface that can be
-extended through third party extensions that access our public APIs. Eventually, JupyterLab
-will replace the classic Jupyter Notebook.
+JupyterLab is the next-generation user interface for Project Jupyter. It offers
+all the familiar building blocks of the classic Jupyter Notebook (notebook,
+terminal, text editor, file browser, rich outputs, etc.) in a flexible and
+powerful user inteface that can be extended through third party extensions.
+Eventually, JupyterLab will replace the classic Jupyter Notebook after
+JupyterLab reaches 1.0.
 
-**JupyterLab is approaching its beta release in 2017. During our pre-beta series of releases, we encourage users and developers to try out JupyterLab and give us feedback.
-For users, the upcoming beta will be suitable for general usage.  For developers, our
-APIs will continue to change significantly up until the 1.0 release.**
+**JupyterLab is currently in beta.** The beta releases are suitable for general
+usage. For JupyterLab extension developers, the extension APIs will continue to
+evolve until the 1.0 release.
 
 For a good overview of JupyterLab, please see [this link](https://channel9.msdn.com/Events/PyData/Seattle2017/BRK11) to a recent talk we gave about JupyterLab at PyData Seattle (2017).
 
@@ -59,12 +60,6 @@ Instructions on how to install the project from the git sources are available in
 Note: If installing using `pip install --user`, you must add the user-level
  `bin` directory to your `PATH` environment variable in order to launch
  `jupyter lab`.
-
-JupyterLab can be installed from a git checkout using `pip`.  Example:
-
-```bash
-pip install git+git://github.com/jupyterlab/jupyterlab.git
-```
 
 If you use ``pipenv``, you can install it as:
 
@@ -127,7 +122,7 @@ A tool like [postcss](http://postcss.org/) can be used to convert the CSS files 
 
 ## Documentation
 
-Read our documentation on [ReadTheDocs](http://jupyterlab-tutorial.readthedocs.io/en/latest/).
+Read our documentation on [ReadTheDocs](http://jupyterlab.readthedocs.io/en/latest/).
 
 ----
 
@@ -143,7 +138,7 @@ JupyterLab follows the official [Jupyter Code of Conduct](https://github.com/jup
 
 JupyterLab can be extended using extensions that are [npm](https://www.npmjs.com/) packages
 and use our public APIs. See our documentation
-for [users](https://jupyterlab-tutorial.readthedocs.io/en/latest/user/extensions.html) and [developers](https://jupyterlab-tutorial.readthedocs.io/en/latest/developer/extension_dev.html).
+for [users](https://jupyterlab.readthedocs.io/en/latest/user/extensions.html) and [developers](https://jupyterlab.readthedocs.io/en/latest/developer/extension_dev.html).
 
 ### License
 
@@ -167,7 +162,7 @@ JupyterLab is part of [Project Jupyter](http://jupyter.org/) and is developed by
 * Cameron Oelsen, Cal Poly (UI/UX design).
 * Fernando Perez, UC Berkeley (co-creator, vision).
 * Ian Rose, UC Berkeley (Real-time collaboration, document architecture).
-* Steven Silvester, Project Jupyter (co-creator, release management, packaging,
+* Steven Silvester, Quansight (co-creator, release management, packaging,
   prolific contributions throughout the code base).
 
 This list is provided to help provide context about who we are and how our team functions.
@@ -185,7 +180,7 @@ and you may participate in development discussions or get live help on [Gitter](
 ## Resources
 
 - [Reporting Issues](https://github.com/jupyterlab/jupyterlab/issues)
-- [Architecture tutorial](https://jupyterlab-tutorial.readthedocs.io/en/latest/index.html)
-- [API Docs](http://jupyterlab.github.io/jupyterlab/)
+- [Architecture tutorial](https://jupyterlab.readthedocs.io/en/latest/index.html)
+- [API Docs](http://jupyterlab.github.io/jupyterlab/globals.html)
 - [Documentation for Project Jupyter](https://jupyter.readthedocs.io/en/latest/index.html) | [PDF](https://media.readthedocs.org/pdf/jupyter/latest/jupyter.pdf)
 - [Project Jupyter website](https://jupyter.org)

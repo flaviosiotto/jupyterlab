@@ -16,7 +16,9 @@ displayed as HTML. You can open different editors and viewers for a file
 by right-clicking on the filename in the file browser and using the
 “Open With” submenu:
 
-[screenshot]
+.. image:: images/file_formats_open_with.png
+   :align: center
+   :class: jp-screenshot
 
 To use these different data formats as output in a notebook or code
 console, you can use the relevant display API for the kernel you are
@@ -31,7 +33,9 @@ classes for displaying rich output:
 Running this code will display the HTML in the output of a notebook or
 code console cell:
 
-[screenshot]
+.. image:: images/file_formats_html_display.png
+   :align: center
+   :class: jp-screenshot
 
 The IPython display function can also construct a raw rich output
 message from a dictionary of keys (MIME types) and values (MIME data):
@@ -44,8 +48,10 @@ message from a dictionary of keys (MIME types) and values (MIME data):
 Other Jupyter kernels offer similar APIs.
 
 The rest of this section highlights some of the common data formats that
-JupyterLab supports.
+JupyterLab supports by default. JupyterLab extensions can also add support for
+other file formats.
 
+.. _markdown:
 
 Markdown
 ~~~~~~~~
@@ -58,8 +64,11 @@ the Jupyter Notebook.
 
 Markdown documents can be edited as text files or rendered inline:
 
-[animation showing opening a markdown document editor and renderer
-side-by-side, and changes in the editor being reflected in the renderer]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/eQsRlqK-z1c?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
 
 The Markdown syntax supported in this mode is the same syntax used in
 the Jupyter Notebook (for example, LaTeX equations work). As seen in the
@@ -81,7 +90,13 @@ To edit an SVG image as a text file, right-click on the SVG filename in
 the file browser and select the “Editor” item in the “Open With”
 submenu:
 
-[animation]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/y_ydmAmVdCA?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+
+.. _csv:
 
 CSV
 ~~~
@@ -94,12 +109,20 @@ format for tabular data. The default viewer for CSV files in JupyterLab
 is a high-performance data grid viewer (which can also handle tab- and
 semicolon-separated values):
 
-[animation]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/z6xuZ9H3Imo?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
 
 To edit a CSV file as a text file, right-click on the file in the file
 browser and select the “Editor” item in the “Open With” submenu:
 
-[animation]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/b5oAoVB3Wd4?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
 
 JSON
 ~~~~
@@ -111,13 +134,20 @@ JavaScript Object Notation (JSON) files are common in data science.
 JupyterLab supports displaying JSON data in cell output or viewing a
 JSON file using a searchable tree view:
 
-[animation showing both rendering JSON as cell output and viewing a JSON
-file]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/FRj1r7-7kiQ?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
 
 To edit the JSON as a text file, right-click on the filename in the file
 browser and select the “Editor” item in the “Open With” submenu:
 
-[animation]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/HKcJAGZngzw?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
 
 HTML
 ~~~~
@@ -146,7 +176,13 @@ PDF
 PDF is a common standard file format for documents. To view a PDF file
 in JupyterLab, double-click on the file in the file browser:
 
-[animation]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/vLAEzD5dxQw?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+
+.. _vega-lite:
 
 Vega/Vega-Lite
 ~~~~~~~~~~~~~~
@@ -161,26 +197,39 @@ Vega-Lite:
 -  File extensions: ``.vl``, ``.vl.json``
 -  MIME type: ``application/vnd.vegalite.v1+json``
 
-Vega and Vega-Lite are declarative visualization grammars that allow
+Vega and Vega-Lite are declarative visualization grammars that enable
 visualizations to be encoded as JSON data. For more information, see the
 documentation of Vega or Vega-Lite. JupyterLab supports rendering Vega
 2.x and Vega-Lite 1.x data in files and cell output.
 
 Vega-Lite 1.x files, with a ``.vl`` or ``.vl.json`` file extension, can
-be opened by double-clicking the file in the File Browser:
+be opened by double-clicking the file in the file browser:
 
-[animation]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/Dddtyz5fWkU?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
 
 The files can also be opened in the JSON viewer or file editor through
 the “Open With…” submenu in the file browser content menu:
 
-[animation]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/qaiGRXh4jxc?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
 
 As with other files in JupyterLab, multiple views of a single file
-remain synchronized, allowing you to interactively edit and render
-Vega-Lite/Vega visualizations:
+remain synchronized, enabling you to interactively edit and render
+Vega/Vega-Lite visualizations:
 
-[animation]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/4Me4rCeS8To?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+
 
 The same workflow also works for Vega 2.x files, with a ``.vg`` or
 ``.vg.json`` file extension.
@@ -189,7 +238,9 @@ Output support for Vega/Vega-Lite in a notebook or code console is
 provided through third-party libraries such as Altair (Python), the
 vegalite R package, or Vegas (Scala/Spark).
 
-[screenshot]
+.. image:: images/file_formats_altair.png
+   :align: center
+   :class: jp-screenshot
 
 A JupyterLab extension that supports Vega 3.x and Vega-Lite 2.x can be
 found `here <https://github.com/jupyterlab/jupyter-renderers>`__.
@@ -211,10 +262,16 @@ files with the ``.vdom`` extension, or within notebook output.
 Here is an example of a ``.vdom`` file being edited and rendered
 interactively:
 
-[animation]
+.. raw:: html
+
+  <div class="jp-youtube-video">
+    <iframe src="https://www.youtube-nocookie.com/embed/fObR8xeKCJU?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
 
 The `nteract/vdom <https://github.com/nteract/vdom>`__ library provides
 a Python API for creating VDOM output that is rendered in nteract and
 JupyterLab:
 
-[screenshot or animation]
+.. image:: images/file_formats_nteract_vdom.png
+   :align: center
+   :class: jp-screenshot

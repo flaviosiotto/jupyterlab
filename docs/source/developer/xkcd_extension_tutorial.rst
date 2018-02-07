@@ -3,6 +3,11 @@
 Let's Make an xkcd JupyterLab Extension
 ---------------------------------------
 
+.. warning::
+
+   The extension developer API is not stable and will evolve in JupyterLab beta
+   releases. The extension developer API will be stable in JupyterLab 1.0.
+
 JupyterLab extensions add features to the user experience. This page
 describes how to create one type of extension, an *application plugin*,
 that:
@@ -334,7 +339,7 @@ code:
           label: 'Random xkcd comic',
           execute: () => {
             if (!widget.isAttached) {
-              // Attach the widget to the main area if it's not there
+              // Attach the widget to the main work area if it's not there
               app.shell.addToMainArea(widget);
             }
             // Activate the widget
@@ -349,7 +354,7 @@ code:
 The first new block of code creates a ``Widget`` instance, assigns it a
 unique ID, gives it a label that will appear as its tab title, and makes
 the tab closable by the user. The second block of code add a new command
-labeled *Random xkcd comic* to JupyterLab. When the comm and executes,
+labeled *Random xkcd comic* to JupyterLab. When the command executes,
 it attaches the widget to the main display area if it is not already
 present and then makes it the active tab. The last new line of code adds
 the command to the command palette in a section called *Tutorial*.
@@ -376,7 +381,7 @@ carry on.
 .. code:: bash
 
     git add .
-    git commit -m 'Show xkcd panel on command'
+    git commit -m 'Show xkcd command on panel'
 
 Show a comic in the panel
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -612,7 +617,7 @@ these changes:
         label: 'Random xkcd comic',
         execute: () => {
           if (!widget.isAttached) {
-            // Attach the widget to the main area if it's not there
+            // Attach the widget to the main work area if it's not there
             app.shell.addToMainArea(widget);
           }
           // Refresh the comic in the widget
@@ -736,7 +741,7 @@ Finally, rewrite the ``activate`` function so that it:
             tracker.add(widget);
           }
           if (!widget.isAttached) {
-            // Attach the widget to the main area if it's not there
+            // Attach the widget to the main work area if it's not there
             app.shell.addToMainArea(widget);
           } else {
             // Refresh the comic in the widget

@@ -14,7 +14,7 @@
 
 ## General
 
-Welcome to the Frequently Asked Questions (FAQ) for the JupyterLab Beta 1 Release.
+Welcome to the Frequently Asked Questions (FAQ) for the JupyterLab Beta Release Series.
 
 ### What is JupyterLab?
 
@@ -28,7 +28,7 @@ interactive computing with data.
 In addition to the Jupyter Notebook, JupyterLab offers multiple models of
 interactive computing, including a scratchpad-like Code Console and the
 ability to attach kernels to any text file. JupyterLab has
-built-in support for many common file and output formats (CVS, PDF, Vega,
+built-in support for many common file and output formats (CSV, PDF, Vega,
 Vega-Lite, Markdown, JSON, VDOM, PNG, JPEG, HTML, etc.).
 
 The codebase and user-interface of JupyterLab is based on a flexible extension
@@ -52,7 +52,7 @@ for more detailed information about these and other features.
 
 ### How stable is JupyterLab?
 
-This Beta 1 version of JupyterLab is ready for you to use! Starting with this
+This Beta version of JupyterLab is ready for you to use! Starting with this
 release, the JupyterLab Beta series of releases are characterized by:
 
 * Stable and featureful enough for daily usage.

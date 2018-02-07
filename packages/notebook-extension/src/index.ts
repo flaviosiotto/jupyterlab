@@ -272,7 +272,7 @@ const EXPORT_TO_FORMATS = [
   { 'format': 'pdf', 'label': 'PDF' },
   { 'format': 'rst', 'label': 'ReStructured Text' },
   { 'format': 'script', 'label': 'Executable Script' },
-  { 'format': 'slides', 'label': 'Reveal JS' }
+  { 'format': 'slides', 'label': 'Reveal.js Slides' }
 ];
 
 
@@ -653,14 +653,19 @@ function activateNotebookHandler(app: JupyterLab, mainMenu: IMainMenu, palette: 
     rank: 2
   });
   app.contextMenu.addItem({
-    type: 'separator',
+    command: CommandIDs.restart,
     selector: '.jp-Notebook',
     rank: 3
   });
   app.contextMenu.addItem({
-    command: CommandIDs.createConsole,
+    type: 'separator',
     selector: '.jp-Notebook',
     rank: 4
+  });
+  app.contextMenu.addItem({
+    command: CommandIDs.createConsole,
+    selector: '.jp-Notebook',
+    rank: 5
   });
 
 
@@ -703,8 +708,6 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Noteboo
     if (!isEnabled()) { return false; }
     const { notebook } = tracker.currentWidget;
     const index = notebook.activeCellIndex;
-    // Can't run above if we are at the top of a notebook.
-    if (index === notebook.widgets.length - 1) { return false; }
     // If there are selections that are not the active cell,
     // this command is confusing, so disable it.
     for (let i = 0; i < notebook.widgets.length; ++i) {
@@ -778,7 +781,12 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Noteboo
         return NotebookActions.runAllAbove(notebook, context.session);
       }
     },
-    isEnabled: isEnabledAndSingleSelected
+    isEnabled: () => {
+      // Can't run above if there are multiple cells selected,
+      // or if we are at the top of the notebook.
+      return isEnabledAndSingleSelected() &&
+             tracker.currentWidget.notebook.activeCellIndex !== 0;
+    }
   });
   commands.addCommand(CommandIDs.runAllBelow, {
     label: 'Run Selected Cell and All Below',
@@ -791,7 +799,13 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Noteboo
         return NotebookActions.runAllBelow(notebook, context.session);
       }
     },
-    isEnabled: isEnabledAndSingleSelected
+    isEnabled: () => {
+      // Can't run below if there are multiple cells selected,
+      // or if we are at the bottom of the notebook.
+      return isEnabledAndSingleSelected() &&
+             tracker.currentWidget.notebook.activeCellIndex !==
+             tracker.currentWidget.notebook.widgets.length - 1;
+    }
   });
   commands.addCommand(CommandIDs.restart, {
     label: 'Restart Kernel…',

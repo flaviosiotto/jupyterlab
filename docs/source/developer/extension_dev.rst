@@ -3,6 +3,11 @@
 Extension Developer Guide
 -------------------------
 
+.. warning::
+
+   The extension developer API is not stable and will evolve in JupyterLab beta
+   releases. The extension developer API will be stable in JupyterLab 1.0.
+
 JupyterLab can be extended in three ways via:
 
 -  **application plugins (top level):** Application plugins extend the
@@ -12,7 +17,7 @@ JupyterLab can be extended in three ways via:
    potentially render files of a given type.
 -  document widget extensions (lower level): Document widget extensions
    extend the functionality of document widgets added to the
-   application, and we cover them in the "Documents" tutorial.
+   application, and we cover them in :ref:`documents`.
 
 See :ref:`xkcd_extension_tutorial` to learn how to make a simple JupyterLab extension.
 
@@ -83,7 +88,7 @@ application consists of:
 
 -  A top area for things like top level menus and toolbars
 -  Left and right side bar areas for collapsible content
--  A main area for user activity.
+-  A main work area for user activity.
 -  A bottom area for things like status bars
 
 Phosphor
@@ -97,9 +102,9 @@ as patterns and objects for writing clean, well-abstracted code. The
 widgets in the application are primarily **Phosphor widgets**, and
 Phosphor concepts, like message passing and signals, are used
 throughout. **Phosphor messages** are a *many-to-one* interaction that
-allows information like resize events to flow through the widget
+enables information like resize events to flow through the widget
 hierarchy in the application. **Phosphor signals** are a *one-to-many*
-interaction that allow listeners to react to changes in an observed
+interaction that enable listeners to react to changes in an observed
 object.
 
 Extension Authoring
@@ -145,9 +150,12 @@ the CSS files) are watched by the WebPack process.
 Note that the application is built against **released** versions of the
 core JupyterLab extensions. If your extension depends on JupyterLab
 packages, it should be compatible with the dependencies in the
-``jupyterlab/static/package.json`` file. If you must install a extension
-into a development branch of JupyterLab, you have to graft it into the
-source tree of JupyterLab itself. This may be done using the command
+``jupyterlab/static/package.json`` file.  Note that building will always use the latest JavaScript packages that meet the dependency requirements of JupyterLab itself and any installed extensions.  If you wish to test against a
+specific patch release of one of the core JupyterLab packages you can
+temporarily pin that requirement to a specific version in your own
+dependencies.
+
+If you must install a extension into a development branch of JupyterLab, you have to graft it into the source tree of JupyterLab itself. This may be done using the command
 
 ::
 
@@ -300,7 +308,7 @@ Storing Extension Data
 In addition to the file system that is accessed by using the
 ``@jupyterlab/services`` package, JupyterLab offers two ways for
 extensions to store data: a client-side state database that is built on
-top of ``localStorage`` and a plugin settings system that allows for
+top of ``localStorage`` and a plugin settings system that provides for
 default setting values and user overrides.
 
 State Database
