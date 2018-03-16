@@ -344,12 +344,12 @@ function activateCellTools(app: JupyterLab, tracker: INotebookTracker, editorSer
 
   // Create message hook for triggers to save to the database.
   const hook = (sender: any, message: Message): boolean => {
-    switch (message) {
-      case Widget.Msg.ActivateRequest:
+    switch (message.type) {
+      case 'activate-request':
         state.save(id, { open: true });
         break;
-      case Widget.Msg.AfterHide:
-      case Widget.Msg.CloseRequest:
+      case 'after-hide':
+      case 'close-request':
         state.remove(id);
         break;
       default:
@@ -909,8 +909,12 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Noteboo
       if (current) {
         const { context, notebook, session } = current;
 
-        return session.restart()
-          .then(() => { NotebookActions.runAll(notebook, context.session); });
+        return session.restart().then(restarted => {
+          if (restarted) {
+            NotebookActions.runAll(notebook, context.session);
+          }
+          return restarted;
+        });
       }
     },
     isEnabled
@@ -1651,8 +1655,12 @@ function populateMenus(app: JupyterLab, mainMenu: IMainMenu, tracker: INotebookT
     noun: 'All Outputs',
     restartKernel: current => current.session.restart(),
     restartKernelAndClear: current => {
-      NotebookActions.clearAllOutputs(current.notebook);
-      return current.session.restart();
+      return current.session.restart().then(restarted => {
+        if (restarted) {
+          NotebookActions.clearAllOutputs(current.notebook);
+        }
+        return restarted;
+      });
     },
     changeKernel: current => current.session.selectKernel(),
     shutdownKernel: current => current.session.shutdown(),
@@ -1721,8 +1729,12 @@ function populateMenus(app: JupyterLab, mainMenu: IMainMenu, tracker: INotebookT
     restartAndRunAll: current => {
       const { context, notebook } = current;
       return context.session.restart()
-      .then(() => { NotebookActions.runAll(notebook, context.session); })
-      .then(() => void 0);
+      .then(restarted => {
+        if (restarted) {
+          NotebookActions.runAll(notebook, context.session);
+        }
+        return restarted;
+      });
     }
   } as IRunMenu.ICodeRunner<NotebookPanel>);
 

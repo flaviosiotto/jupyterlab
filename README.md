@@ -157,13 +157,15 @@ JupyterLab is part of [Project Jupyter](http://jupyter.org/) and is developed by
 * Afshin Darian, Project Jupyter (co-creator, settings, inspector, completer,
   prolific contributions throughout the code base).
 * Jessica Forde, Project Jupyter (demo, documentation)
+* Tim George, Cal Poly (UI/UX design, strategy, management, user needs analysis)
 * Brian Granger, Cal Poly (co-creator, strategy, vision, management, UI/UX design,
   architecture).
 * Jason Grout, Bloomberg (co-creator, vision, general development).
 * Cameron Oelsen, Cal Poly (UI/UX design).
 * Fernando Perez, UC Berkeley (co-creator, vision).
 * Ian Rose, UC Berkeley (Real-time collaboration, document architecture).
-* Steven Silvester, Quansight (co-creator, release management, packaging,
+* Saul Shanabrook, Quansight (general development, extensions)
+* Steven Silvester, JPMorgan Chase (co-creator, release management, packaging,
   prolific contributions throughout the code base).
 
 This list is provided to help provide context about who we are and how our team functions.

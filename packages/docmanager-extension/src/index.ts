@@ -14,7 +14,7 @@ import {
 } from '@jupyterlab/coreutils';
 
 import {
-  renameDialog, DocumentManager, IDocumentManager
+  renameDialog, getOpenPath, DocumentManager, IDocumentManager
 } from '@jupyterlab/docmanager';
 
 import {
@@ -58,6 +58,9 @@ namespace CommandIDs {
 
   export
   const open = 'docmanager:open';
+
+  export
+  const openDirect = 'docmanager:open-direct';
 
   export
   const rename = 'docmanager:rename';
@@ -124,7 +127,8 @@ const plugin: JupyterLabPlugin<IDocumentManager> = {
       }
     };
     const registry = app.docRegistry;
-    const docManager = new DocumentManager({ registry, manager, opener });
+    const when = app.restored.then(() => void 0);
+    const docManager = new DocumentManager({ registry, manager, opener, when });
 
     // Register the file operations commands.
     addCommands(app, docManager, palette, opener, settingRegistry);
@@ -246,14 +250,36 @@ function addCommands(app: JupyterLab, docManager: IDocumentManager, palette: ICo
       const kernel = args['kernel'] as Kernel.IModel || void 0;
       const options = args['options'] as DocumentRegistry.IOpenOptions || void 0;
       return docManager.services.contents.get(path, { content: false })
-        .then(() => docManager.openOrReveal(path, factory, kernel, options))
-        .then(widget => {
-          return widget.ready.then(() => { return widget; });
-        });
+        .then(() => docManager.openOrReveal(path, factory, kernel, options));
     },
     icon: args => args['icon'] as string || '',
     label: args => (args['label'] || args['factory']) as string,
     mnemonic: args => args['mnemonic'] as number || -1
+  });
+
+  commands.addCommand(CommandIDs.openDirect, {
+    label: () => 'Open from Path',
+    caption: 'Open from path',
+    isEnabled: () => true,
+    execute: () => {
+      return getOpenPath(docManager.services.contents).then(path => {
+        if (!path) {
+          return;
+        }
+        docManager.services.contents.get(path, { content: false }).then( (args) => {
+          // exists
+          return commands.execute(CommandIDs.open, {path: path});
+        }, () => {
+          // does not exist
+          return showDialog({
+            title: 'Cannot open',
+            body: 'File not found',
+            buttons: [Dialog.okButton()]
+          });
+        });
+        return;
+      });
+    },
   });
 
   commands.addCommand(CommandIDs.restoreCheckpoint, {
@@ -285,7 +311,15 @@ function addCommands(app: JupyterLab, docManager: IDocumentManager, palette: ICo
             buttons: [Dialog.okButton()]
           });
         }
-        return context.save().then(() => context.createCheckpoint());
+        return context.save()
+          .then(() => context.createCheckpoint())
+          .catch(err => {
+            // If the save was canceled by user-action, do nothing.
+            if (err.message === 'Cancel') {
+              return;
+            }
+            throw err;
+          });
       }
     }
   });
@@ -387,6 +421,7 @@ function addCommands(app: JupyterLab, docManager: IDocumentManager, palette: ICo
   });
 
   [
+    CommandIDs.openDirect,
     CommandIDs.save,
     CommandIDs.restoreCheckpoint,
     CommandIDs.saveAs,

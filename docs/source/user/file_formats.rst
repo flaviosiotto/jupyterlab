@@ -85,7 +85,10 @@ Images
 
 JupyterLab supports image data in cell output and as files in the above
 formats. In the image file viewer, you can use keyboard shortcuts such
-as ``+`` and ``-`` to zoom the image and ``0`` to reset the zoom level.
+as ``+`` and ``-`` to zoom the image, ``[`` and ``]`` to rotate the image, 
+and ``H`` and ``V`` to flip the image horizontally and vertically. Use 
+``I`` to invert the colors, and use ``0`` to reset the image.
+
 To edit an SVG image as a text file, right-click on the SVG filename in
 the file browser and select the “Editor” item in the “Open With”
 submenu:
@@ -104,10 +107,12 @@ CSV
 -  File extension: ``.csv``
 -  MIME type: None
 
-Files with rows of comma-separated values (CSV files) are a common
-format for tabular data. The default viewer for CSV files in JupyterLab
-is a high-performance data grid viewer (which can also handle tab- and
-semicolon-separated values):
+Files with rows of comma-separated values (CSV files) are a common format for
+tabular data. The default viewer for CSV files in JupyterLab is a
+high-performance data grid viewer (which can also handle tab- and
+semicolon-separated values). JupyterLab can open files up to the maximum string
+size in the browser (which ranges from approximately 250MB to 2GB, depending on
+the browser):
 
 .. raw:: html
 
