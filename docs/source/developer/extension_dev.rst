@@ -21,6 +21,10 @@ JupyterLab can be extended in three ways via:
 
 See :ref:`xkcd_extension_tutorial` to learn how to make a simple JupyterLab extension.
 
+To understand how to wrap an **Angular** application as a JupyterLab extension,
+see the `"Create your own Angular JupyerLab extension" <https://github.com/SimonBiggs/scriptedforms/blob/master/scriptedforms/docs/create-your-own-angular-jupyterlab-extension.md#create-your-own-angular-jupyerlab-extension>`_ guide provided by 
+`Scripted Forms <https://github.com/SimonBiggs/scriptedforms>`_.
+
 A JupyterLab application is comprised of:
 
 -  A core Application object
@@ -42,8 +46,8 @@ A plugin adds a core functionality to the application:
    the default export.
 
    We provide two cookie cutters to create JuptyerLab plugin extensions in
-   `CommonJS <https://github.com/jupyterlab/extension-cookiecutter-js>` and
-   `TypeScript <https://github.com/jupyterlab/extension-cookiecutter-ts>`.
+   `CommonJS <https://github.com/jupyterlab/extension-cookiecutter-js>`__ and
+   `TypeScript <https://github.com/jupyterlab/extension-cookiecutter-ts>`__.
 
 The default plugins in the JupyterLab application include:
 

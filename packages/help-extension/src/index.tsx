@@ -6,7 +6,7 @@ import {
 } from '@jupyterlab/application';
 
 import {
-  Dialog, ICommandPalette, IFrame, InstanceTracker, showDialog
+  Dialog, ICommandPalette, IFrame, InstanceTracker, MainAreaWidget, showDialog
 } from '@jupyterlab/apputils';
 
 import {
@@ -22,16 +22,10 @@ import {
 } from '@jupyterlab/services';
 
 import {
-  Message
-} from '@phosphor/messaging';
-
-import {
-  h
-} from '@phosphor/virtualdom';
-
-import {
-  Menu, PanelLayout, Widget
+  Menu
 } from '@phosphor/widgets';
+
+import * as React from 'react';
 
 import '../style/index.css';
 
@@ -116,44 +110,6 @@ const plugin: JupyterLabPlugin<void> = {
  */
 export default plugin;
 
-/*
-  * An IFrame the disposes itself when closed.
-  *
-  * This is needed to clear the state restoration db when IFrames are closed.
- */
-class HelpWidget extends Widget {
-  /**
-   * Construct a new help widget.
-   */
-  constructor(url: string) {
-    super();
-    let layout = this.layout = new PanelLayout();
-    let iframe = new IFrame();
-    this.url = iframe.url = url;
-    layout.addWidget(iframe);
-  }
-
-  /**
-   * The url of the widget.
-   */
-  readonly url: string;
-
-  /**
-   * Handle activate requests for the widget.
-   */
-  protected onActivateRequest(msg: Message): void {
-    this.node.tabIndex = -1;
-    this.node.focus();
-  }
-
-  /**
-   * Dispose of the IFrame when closing.
-   */
-  protected onCloseRequest(msg: Message): void {
-    this.dispose();
-  }
-}
-
 
 /**
  * Activate the help handler extension.
@@ -168,26 +124,27 @@ function activate(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette
   const namespace = 'help-doc';
   const baseUrl = PageConfig.getBaseUrl();
   const { commands, shell, info, serviceManager } = app;
-  const tracker = new InstanceTracker<HelpWidget>({ namespace });
+  const tracker = new InstanceTracker<MainAreaWidget>({ namespace });
 
   // Handle state restoration.
   restorer.restore(tracker, {
     command: CommandIDs.open,
-    args: widget => ({ url: widget.url, text: widget.title.label }),
-    name: widget => widget.url
+    args: widget => ({ url: widget.content.url, text: widget.content.title.label }),
+    name: widget => widget.content.url
   });
 
   /**
    * Create a new HelpWidget widget.
    */
-  function newClosableIFrame(url: string, text: string): HelpWidget {
-    let iframe = new HelpWidget(url);
-    iframe.addClass(HELP_CLASS);
-    iframe.title.label = text;
-    iframe.title.closable = true;
-    iframe.id = `${namespace}-${++counter}`;
-    tracker.add(iframe);
-    return iframe;
+  function newHelpWidget(url: string, text: string): MainAreaWidget {
+    let content = new IFrame();
+    content.url = url;
+    content.addClass(HELP_CLASS);
+    content.title.label = text;
+    content.id = `${namespace}-${++counter}`;
+    let widget = new MainAreaWidget({ content });
+    widget.addClass('jp-Help');
+    return widget;
   }
 
   // Populate the Help menu.
@@ -201,7 +158,6 @@ function activate(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette
   const resourcesGroup = RESOURCES
     .map(args => ({ args, command: CommandIDs.open }));
   helpMenu.addGroup(resourcesGroup, 10);
-  helpMenu.addGroup([{ command: 'apputils:reset' }], 20);
 
   // Generate a cache of the kernel help links.
   const kernelInfoCache = new Map<string, KernelMessage.IInfoReply>();
@@ -261,14 +217,18 @@ function activate(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette
           isEnabled: usesKernel,
           execute: () => {
             // Create the header of the about dialog
-            let headerLogo = h.img({ src: kernelIconUrl});
-            let title = h.span({className: 'jp-About-header'},
-              headerLogo,
-              h.div({className: 'jp-About-header-info'}, kernelName)
+            let headerLogo = (<img src={kernelIconUrl} />);
+            let title = (
+              <span className='jp-About-header'>,
+                {headerLogo},
+                <div className='jp-About-header-info'>{kernelName}</div>
+              </span>
             );
-            const banner = h.pre({}, kernelInfo.banner);
-            let body = h.div({ className: 'jp-About-body' },
-              banner
+            const banner = (<pre>{kernelInfo.banner}</pre>);
+            let body = (
+              <div className='jp-About-body'>
+                {banner}
+              </div>
             );
 
             showDialog({
@@ -310,43 +270,53 @@ function activate(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette
     execute: () => {
 
       // Create the header of the about dialog
-      let headerLogo = h.div({className: 'jp-About-header-logo'});
-      let headerWordmark = h.div({className: 'jp-About-header-wordmark'});
+      let headerLogo = (<div className='jp-About-header-logo'/>);
+      let headerWordmark = (<div className='jp-About-header-wordmark'/>);
       let release = 'Beta Release Series';
       let versionNumber = `Version ${info.version}`;
-      let versionInfo = h.span({className: 'jp-About-version-info'},
-        h.span({className: 'jp-About-release'}, release),
-        h.span({className: 'jp-About-version'}, versionNumber)
+      let versionInfo = (
+        <span className='jp-About-version-info'>
+          <span className='jp-About-release'>{release}</span>
+          <span className='jp-About-version'>{versionNumber}</span>
+        </span>
       );
-      let title = h.span({className: 'jp-About-header'},
-        headerLogo,
-        h.div({className: 'jp-About-header-info'},
-          headerWordmark,
-          versionInfo
-        )
+      let title = (
+        <span className='jp-About-header'>
+          {headerLogo},
+          <div className='jp-About-header-info'>
+            {headerWordmark}
+            {versionInfo}
+          </div>
+        </span>
       );
 
       // Create the body of the about dialog
       let jupyterURL = 'https://jupyter.org/about.html';
       let contributorsURL = 'https://github.com/jupyterlab/jupyterlab/graphs/contributors';
-      let externalLinks = h.span({className: 'jp-About-externalLinks'},
-        h.a({
-          href: contributorsURL,
-          target: '_blank',
-          className: 'jp-Button-flat'
-        }, 'CONTRIBUTOR LIST'),
-        h.a({
-          href: jupyterURL,
-          target: '_blank',
-          className: 'jp-Button-flat'
-        }, 'ABOUT PROJECT JUPYTER')
+      let externalLinks = (
+        <span className='jp-About-externalLinks'>
+          <a
+            href={contributorsURL}
+            target='_blank'
+            className='jp-Button-flat'
+          >CONTRIBUTOR LIST</a>
+          <a
+            href={jupyterURL}
+            target='_blank'
+            className='jp-Button-flat'
+          >ABOUT PROJECT JUPYTER</a>
+        </span>
       );
-      let copyright = h.span({
-        className: 'jp-About-copyright'
-      }, '© 2018 Project Jupyter');
-      let body = h.div({ className: 'jp-About-body' },
-        externalLinks,
-        copyright
+      let copyright = (
+        <span
+          className='jp-About-copyright'
+        >© 2018 Project Jupyter</span>
+      );
+      let body = (
+        <div className='jp-About-body'>
+          {externalLinks}
+          {copyright}
+        </div>
       );
 
       showDialog({
@@ -374,9 +344,9 @@ function activate(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette
         return;
       }
 
-      let iframe = newClosableIFrame(url, text);
-      shell.addToMainArea(iframe);
-      shell.activateById(iframe.id);
+      let widget = newHelpWidget(url, text);
+      tracker.add(widget);
+      shell.addToMainArea(widget);
     }
   });
 
