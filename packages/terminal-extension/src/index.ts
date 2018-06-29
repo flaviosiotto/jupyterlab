@@ -79,7 +79,7 @@ export default plugin;
  * Activate the terminal plugin.
  */
 function activate(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette, restorer: ILayoutRestorer, launcher: ILauncher | null): ITerminalTracker {
-  const { commands, serviceManager } = app;
+  const { serviceManager } = app;
   const category = 'Terminal';
   const namespace = 'terminal';
   const tracker = new InstanceTracker<MainAreaWidget<Terminal>>({ namespace });
@@ -124,11 +124,9 @@ function activate(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette
   // Add a launcher item if the launcher is available.
   if (launcher) {
     launcher.add({
-      displayName: 'Terminal',
+      command: CommandIDs.createNew,
       category: 'Other',
       rank: 0,
-      iconClass: TERMINAL_ICON_CLASS,
-      callback: () => commands.execute(CommandIDs.createNew)
     });
   }
 
@@ -157,6 +155,7 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Instanc
   commands.addCommand(CommandIDs.createNew, {
     label: args => args['isPalette'] ? 'New Terminal' : 'Terminal',
     caption: 'Start a new terminal session',
+    iconClass: TERMINAL_ICON_CLASS,
     execute: args => {
       const name = args['name'] as string;
       const initialCommand = args['initialCommand'] as string;
@@ -215,7 +214,7 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Instanc
     isEnabled: () => tracker.currentWidget !== null
   });
 
-  commands.addCommand('terminal:increase-font', {
+  commands.addCommand(CommandIDs.increaseFont, {
     label: 'Increase Terminal Font Size',
     execute: () => {
       let options = Terminal.defaultOptions;
@@ -229,7 +228,7 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Instanc
     isEnabled
   });
 
-  commands.addCommand('terminal:decrease-font', {
+  commands.addCommand(CommandIDs.decreaseFont, {
     label: 'Decrease Terminal Font Size',
     execute: () => {
       let options = Terminal.defaultOptions;
@@ -244,7 +243,7 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Instanc
   });
 
   let terminalTheme: Terminal.Theme = 'dark';
-  commands.addCommand('terminal:toggle-theme', {
+  commands.addCommand(CommandIDs.toggleTheme, {
     label: 'Use Dark Terminal Theme',
     caption: 'Whether to use the dark terminal theme',
     isToggled: () => terminalTheme === 'dark',
@@ -257,6 +256,7 @@ function addCommands(app: JupyterLab, services: ServiceManager, tracker: Instanc
           widget.content.theme = terminalTheme;
         }
       });
+      commands.notifyCommandChanged(CommandIDs.toggleTheme);
     },
     isEnabled
   });

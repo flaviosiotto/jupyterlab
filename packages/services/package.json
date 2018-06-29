@@ -39,9 +39,9 @@
     "test:coverage": "python test/run_test.py --TestApp.coverage==True",
     "test:debug": "python test/run_test.py --debug",
     "test:devtool": "python test/run_test.py --TestApp.devtool==True",
-    "watch": "tsc -w",
+    "watch": "tsc -w --listEmittedFiles",
     "watch:all": "npm-run-all -p watch watch:test",
-    "watch:test": "tsc -w --project test"
+    "watch:test": "tsc -w --listEmittedFiles --project test"
   },
   "dependencies": {
     "@jupyterlab/coreutils": "^1.1.2",
@@ -57,7 +57,6 @@
     "@types/expect.js": "~0.3.29",
     "@types/mocha": "~2.2.44",
     "@types/node-fetch": "~1.6.7",
-    "@types/text-encoding": "~0.0.30",
     "@types/ws": "~0.0.39",
     "expect.js": "~0.3.1",
     "istanbul": "~0.3.22",
@@ -65,7 +64,8 @@
     "npm-run-all": "~4.1.1",
     "rimraf": "~2.6.2",
     "text-encoding": "~0.5.5",
-    "typescript": "~2.6.2",
-    "webpack": "~2.7.0"
+    "typescript": "~2.9.2",
+    "webpack": "~4.12.0",
+    "webpack-cli": "^3.0.3"
   }
 }

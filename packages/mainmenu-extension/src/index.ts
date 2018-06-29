@@ -29,6 +29,9 @@ import {
 export
 namespace CommandIDs {
   export
+  const activatePreviouslyUsedTab = 'tabmenu:activate-previously-used-tab';
+
+  export
   const undo = 'editmenu:undo';
 
   export
@@ -48,6 +51,9 @@ namespace CommandIDs {
 
   export
   const closeAndCleanup = 'filemenu:close-and-cleanup';
+
+  export
+  const persistAndSave = 'filemenu:persist-and-save';
 
   export
   const createConsole = 'filemenu:create-console';
@@ -123,6 +129,11 @@ const menuPlugin: JupyterLabPlugin<IMainMenu> = {
     palette.addItem({
       command: CommandIDs.shutdownAllKernels,
       category: 'Kernel Operations'
+    });
+
+    palette.addItem({
+      command: CommandIDs.activatePreviouslyUsedTab,
+      category: 'Main Area'
     });
 
     app.shell.addToTopArea(logo);
@@ -232,6 +243,21 @@ function createFileMenu(app: JupyterLab, menu: FileMenu): void {
       Private.delegateExecute(app, menu.closeAndCleaners, 'closeAndCleanup')
   });
 
+  // Add a delegator command for persisting data then saving.
+  commands.addCommand(CommandIDs.persistAndSave, {
+    label: () => {
+      const action =
+        Private.delegateLabel(app, menu.persistAndSavers, 'action');
+      const name =
+        Private.delegateLabel(app, menu.persistAndSavers, 'name');
+      return `Save ${name} ${action || 'with Extras'}`;
+    },
+    isEnabled:
+      Private.delegateEnabled(app, menu.persistAndSavers, 'persistAndSave'),
+    execute:
+      Private.delegateExecute(app, menu.persistAndSavers, 'persistAndSave')
+  });
+
   // Add a delegator command for creating a console for an activity.
   commands.addCommand(CommandIDs.createConsole, {
     label: () => {
@@ -264,12 +290,14 @@ function createFileMenu(app: JupyterLab, menu: FileMenu): void {
   // Add save group.
   const saveGroup = [
     'docmanager:save',
+    'filemenu:persist-and-save',
     'docmanager:save-as',
     'docmanager:save-all'
   ].map(command => { return { command }; });
 
   // Add the re group.
   const reGroup = [
+    'docmanager:reload',
     'docmanager:restore-checkpoint',
     'docmanager:rename'
   ].map(command => { return { command }; });
@@ -463,9 +491,9 @@ function createTabsMenu(app: JupyterLab, menu: TabsMenu): void {
   // Add commands for cycling the active tabs.
   menu.addGroup([
     { command: 'application:activate-next-tab' },
-    { command: 'application:activate-previous-tab' }
+    { command: 'application:activate-previous-tab' },
+    { command: CommandIDs.activatePreviouslyUsedTab }
   ], 0);
-
 
   let tabGroup: Menu.IItemOptions[] = [];
 
@@ -485,6 +513,16 @@ function createTabsMenu(app: JupyterLab, menu: TabsMenu): void {
     return { command: commandID };
   };
 
+  let previousId = '';
+
+  // Command to toggle between the current
+  // tab and the last modified tab.
+  commands.addCommand(CommandIDs.activatePreviouslyUsedTab, {
+    label: 'Activate Previously Used Tab',
+    isEnabled: () => !!previousId,
+    execute: () => previousId && app.commands.execute(`tabmenu:activate-${previousId}`)
+  });
+
   app.restored.then(() => {
     // Iterate over the current widgets in the
     // main area, and add them to the tab group
@@ -492,13 +530,27 @@ function createTabsMenu(app: JupyterLab, menu: TabsMenu): void {
     const populateTabs = () => {
       menu.removeGroup(tabGroup);
       tabGroup.length = 0;
+      let isPreviouslyUsedTabAttached = false;
       each(app.shell.widgets('main'), widget => {
+        if (widget.id === previousId) {
+          isPreviouslyUsedTabAttached = true;
+        }
         tabGroup.push(createMenuItem(widget));
       });
       menu.addGroup(tabGroup, 1);
+      previousId = isPreviouslyUsedTabAttached ? previousId : '';
     };
     populateTabs();
     app.shell.layoutModified.connect(() => { populateTabs(); });
+    // Update the id of the previous active tab if
+    // a new tab is selected.
+    app.shell.currentChanged.connect((sender, args) => {
+      let widget = args.oldValue;
+      if (!widget) {
+        return;
+      }
+      previousId = widget.id;
+    });
   });
 }
 
@@ -533,7 +585,10 @@ namespace Private {
     if (!extender) {
       return '';
     }
-    return extender[label];
+    // Coerce the result to be a string. When Typedoc is updated to use
+    // Typescript 2.8, we can possibly use conditional types to get Typescript
+    // to recognize this is a string.
+    return extender[label] as any as string;
   }
 
   /**
@@ -548,7 +603,11 @@ namespace Private {
       if (!extender) {
         return Promise.resolve(void 0);
       }
-      return extender[executor](widget);
+      // Coerce the result to be a function. When Typedoc is updated to use
+      // Typescript 2.8, we can possibly use conditional types to get Typescript
+      // to recognize this is a function.
+      let f = extender[executor] as any as (w: Widget) => Promise<any>;
+      return f(widget);
     };
   }
 
@@ -575,7 +634,10 @@ namespace Private {
     return () => {
       let widget = app.shell.currentWidget;
       const extender = findExtender(widget, s);
-      return !!extender && !!extender[toggled] && !!extender[toggled](widget);
+      // Coerce extender[toggled] to be a function. When Typedoc is updated to use
+      // Typescript 2.8, we can possibly use conditional types to get Typescript
+      // to recognize this is a function.
+      return !!extender && !!extender[toggled] && !!(extender[toggled] as any as (w: Widget) => (() => boolean))(widget);
     };
   }
 }

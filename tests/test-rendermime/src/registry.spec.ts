@@ -8,7 +8,7 @@ import {
 } from '@jupyterlab/coreutils';
 
 import {
-  Contents, ServiceManager, Session
+  Contents, Drive, ServiceManager, Session
 } from '@jupyterlab/services';
 
 import {
@@ -177,12 +177,12 @@ describe('rendermime/registry', () => {
           'text/plain': 'foo',
           'text/html': '<h1>foo</h1>'
         });
-        expect(r.preferredMimeType(model.data, false)).to.be('text/html');
+        expect(r.preferredMimeType(model.data, 'any')).to.be('text/html');
       });
 
       it('should return `undefined` if there are no registered mimeTypes', () => {
         let model = createModel({ 'text/fizz': 'buzz' });
-        expect(r.preferredMimeType(model.data, false)).to.be(void 0);
+        expect(r.preferredMimeType(model.data, 'any')).to.be(void 0);
       });
 
       it('should select the mimeType that is safe', () => {
@@ -191,7 +191,7 @@ describe('rendermime/registry', () => {
           'text/javascript': 'window.x = 1',
           'image/png': 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
         });
-        expect(r.preferredMimeType(model.data, true)).to.be('image/png');
+        expect(r.preferredMimeType(model.data)).to.be('image/png');
       });
 
       it('should render the mimeType that is sanitizable', () => {
@@ -199,7 +199,36 @@ describe('rendermime/registry', () => {
           'text/plain': 'foo',
           'text/html': '<h1>foo</h1>'
         });
-        expect(r.preferredMimeType(model.data, true)).to.be('text/html');
+        expect(r.preferredMimeType(model.data)).to.be('text/html');
+      });
+
+      it('should return `undefined` if only unsafe options with default `ensure`', () => {
+        let model = createModel({
+          'image/svg+xml': '',
+        });
+        expect(r.preferredMimeType(model.data)).to.be(void 0);
+      });
+
+      it('should return `undefined` if only unsafe options with `ensure`', () => {
+        let model = createModel({
+          'image/svg+xml': '',
+        });
+        expect(r.preferredMimeType(model.data, 'ensure')).to.be(void 0);
+      });
+
+      it('should return safe option if called with `prefer`', () => {
+        let model = createModel({
+          'image/svg+xml': '',
+          'text/plain': '',
+        });
+        expect(r.preferredMimeType(model.data, 'prefer')).to.be('text/plain');
+      });
+
+      it('should return unsafe option if called with `prefer`, and no safe alternative', () => {
+        let model = createModel({
+          'image/svg+xml': '',
+        });
+        expect(r.preferredMimeType(model.data, 'prefer')).to.be('image/svg+xml');
       });
     });
 
@@ -237,7 +266,7 @@ describe('rendermime/registry', () => {
       it('should remove a factory by mimeType', () => {
         r.removeMimeType('text/html');
         let model = createModel({ 'text/html': '<h1>foo</h1>' });
-        expect(r.preferredMimeType(model.data, true)).to.be(void 0);
+        expect(r.preferredMimeType(model.data, 'any')).to.be(void 0);
       });
 
       it('should be a no-op if the mimeType is not registered', () => {
@@ -274,7 +303,9 @@ describe('rendermime/registry', () => {
 
       before(() => {
         const manager = new ServiceManager();
+        const drive = new Drive({ name: 'extra' });
         contents = manager.contents;
+        contents.addDrive(drive);
         return manager.ready.then(() => {
           return manager.sessions.startNew({ path: uuid() });
         }).then(s => {
@@ -329,6 +360,22 @@ describe('rendermime/registry', () => {
           return resolver.getDownloadUrl('http://foo').then(path => {
             expect(path).to.be('http://foo');
           });
+        });
+
+      });
+
+      context('#isLocal', () => {
+
+        it('should return true for a registered IDrive`', () => {
+          expect(resolver.isLocal('extra:path/to/file')).to.be(true);
+        });
+
+        it('should return false for an unrecognized Drive`', () => {
+          expect(resolver.isLocal('unregistered:path/to/file')).to.be(false);
+        });
+
+        it('should return true for a normal filesystem-like path`', () => {
+          expect(resolver.isLocal('path/to/file')).to.be(true);
         });
 
       });

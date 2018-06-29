@@ -91,6 +91,16 @@ class DefaultSession implements Session.ISession {
   }
 
   /**
+   * A signal emitted for any kernel message.
+   *
+   * Note: The behavior is undefined if the message is modified
+   * during message handling. As such, it should be treated as read-only.
+   */
+  get anyMessage(): ISignal<this, Kernel.IAnyMessageArgs> {
+    return this._anyMessage;
+  }
+
+  /**
    * A signal emitted when a session property changes.
    */
   get propertyChanged(): ISignal<this, 'path' | 'name' | 'type'> {
@@ -109,8 +119,6 @@ class DefaultSession implements Session.ISession {
    *
    * #### Notes
    * This is a read-only property, and can be altered by [changeKernel].
-   * Use the [statusChanged] and [unhandledMessage] signals on the session
-   * instead of the ones on the kernel.
    */
   get kernel() : Kernel.IKernelConnection {
     return this._kernel;
@@ -175,24 +183,23 @@ class DefaultSession implements Session.ISession {
   /**
    * Clone the current session with a new clientId.
    */
-  clone(): Promise<Session.ISession> {
-    return Kernel.connectTo(this.kernel.model, this.serverSettings).then(kernel => {
-      return new DefaultSession({
-        path: this._path,
-        name: this._name,
-        type: this._type,
-        serverSettings: this.serverSettings
-      }, this._id, kernel);
-    });
+  clone(): Session.ISession {
+    const kernel = Kernel.connectTo(this.kernel.model, this.serverSettings);
+    return new DefaultSession({
+      path: this._path,
+      name: this._name,
+      type: this._type,
+      serverSettings: this.serverSettings
+    }, this._id, kernel);
   }
 
   /**
    * Update the session based on a session model from the server.
    */
-  update(model: Session.IModel): Promise<void> {
+  update(model: Session.IModel): void {
     // Avoid a race condition if we are waiting for a REST call return.
     if (this._updating) {
-      return Promise.resolve(void 0);
+      return;
     }
     let oldModel = this.model;
     this._path = model.path;
@@ -200,15 +207,14 @@ class DefaultSession implements Session.ISession {
     this._type = model.type;
 
     if (this._kernel.isDisposed || model.kernel.id !== this._kernel.id) {
-      return Kernel.connectTo(model.kernel, this.serverSettings).then(kernel => {
-        this.setupKernel(kernel);
-        this._kernelChanged.emit(kernel);
-        this._handleModelChange(oldModel);
-      });
+      let kernel = Kernel.connectTo(model.kernel, this.serverSettings);
+      this.setupKernel(kernel);
+      this._kernelChanged.emit(kernel);
+      this._handleModelChange(oldModel);
+      return;
     }
 
     this._handleModelChange(oldModel);
-    return Promise.resolve(void 0);
   }
 
   /**
@@ -311,6 +317,7 @@ class DefaultSession implements Session.ISession {
     kernel.statusChanged.connect(this.onKernelStatus, this);
     kernel.unhandledMessage.connect(this.onUnhandledMessage, this);
     kernel.iopubMessage.connect(this.onIOPubMessage, this);
+    kernel.anyMessage.connect(this.onAnyMessage, this);
   }
 
   /**
@@ -332,6 +339,13 @@ class DefaultSession implements Session.ISession {
    */
   protected onUnhandledMessage(sender: Kernel.IKernel, msg: KernelMessage.IMessage) {
     this._unhandledMessage.emit(msg);
+  }
+
+  /**
+   * Handle any kernel messages.
+   */
+  protected onAnyMessage(sender: Kernel.IKernel, args: Kernel.IAnyMessageArgs) {
+    this._anyMessage.emit(args);
   }
 
   /**
@@ -386,6 +400,7 @@ class DefaultSession implements Session.ISession {
   private _statusChanged = new Signal<this, Kernel.Status>(this);
   private _iopubMessage = new Signal<this, KernelMessage.IIOPubMessage>(this);
   private _unhandledMessage = new Signal<this, KernelMessage.IMessage>(this);
+  private _anyMessage = new Signal<this, Kernel.IAnyMessageArgs>(this);
   private _propertyChanged = new Signal<this, 'path' | 'name' | 'type'>(this);
   private _terminated = new Signal<this, void>(this);
 }
@@ -432,7 +447,7 @@ namespace DefaultSession {
    * Connect to a running session.
    */
   export
-  function connectTo(model: Session.IModel, settings?: ServerConnection.ISettings): Promise<Session.ISession> {
+  function connectTo(model: Session.IModel, settings?: ServerConnection.ISettings): Session.ISession {
     return Private.connectTo(model, settings);
   }
 
@@ -494,12 +509,12 @@ namespace Private {
    * Connect to a running session.
    */
   export
-  function connectTo(model: Session.IModel, settings?: ServerConnection.ISettings): Promise<Session.ISession> {
+  function connectTo(model: Session.IModel, settings?: ServerConnection.ISettings): Session.ISession {
     settings = settings || ServerConnection.makeSettings();
     let running = runningSessions.get(settings.baseUrl) || [];
     let session = find(running, value => value.id === model.id);
     if (session) {
-      return Promise.resolve(session.clone());
+      return session.clone();
     }
     return createSession(model, settings);
   }
@@ -510,16 +525,15 @@ namespace Private {
    * @returns - A promise that resolves with a started session.
    */
   export
-  function createSession(model: Session.IModel, settings?: ServerConnection.ISettings): Promise<DefaultSession> {
+  function createSession(model: Session.IModel, settings?: ServerConnection.ISettings): DefaultSession {
     settings = settings || ServerConnection.makeSettings();
-    return Kernel.connectTo(model.kernel, settings).then(kernel => {
-      return new DefaultSession({
-        path: model.path,
-        type: model.type,
-        name: model.name,
-        serverSettings: settings
-      }, model.id, kernel);
-    });
+    let kernel = Kernel.connectTo(model.kernel, settings);
+    return new DefaultSession({
+      path: model.path,
+      type: model.type,
+      name: model.name,
+      serverSettings: settings
+    }, model.id, kernel);
   }
 
   /**
@@ -677,7 +691,7 @@ namespace Private {
   }
 
   /**
-   * Create a new session, or return an existing session if a session if
+   * Create a new session, or return an existing session if
    * the session path already exists
    */
   export
@@ -709,28 +723,26 @@ namespace Private {
    * Update the running sessions given an updated session Id.
    */
   export
-  function updateFromServer(model: Session.IModel, baseUrl: string): Promise<Session.IModel> {
-    let promises: Promise<void>[] = [];
+  function updateFromServer(model: Session.IModel, baseUrl: string): Session.IModel {
     let running = runningSessions.get(baseUrl) || [];
     each(running.slice(), session => {
       if (session.id === model.id) {
-        promises.push(session.update(model));
+        session.update(model);
       }
     });
-    return Promise.all(promises).then(() => { return model; });
+    return model;
   }
 
   /**
    * Update the running sessions based on new data from the server.
    */
   export
-  function updateRunningSessions(sessions: Session.IModel[], baseUrl: string): Promise<Session.IModel[]> {
-    let promises: Promise<void>[] = [];
+  function updateRunningSessions(sessions: Session.IModel[], baseUrl: string): Session.IModel[] {
     let running = runningSessions.get(baseUrl) || [];
     each(running.slice(), session => {
       let updated = find(sessions, sId => {
         if (session.id === sId.id) {
-          promises.push(session.update(sId));
+          session.update(sId);
           return true;
         }
         return false;
@@ -740,7 +752,7 @@ namespace Private {
         session.dispose();
       }
     });
-    return Promise.all(promises).then(() => { return sessions; });
+    return sessions;
   }
 }
 

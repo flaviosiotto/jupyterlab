@@ -5,8 +5,7 @@ import {
   JSONObject
 } from '@phosphor/coreutils';
 
-import * as urlparse
- from 'url-parse';
+import urlparse from 'url-parse';
 
 /**
  * The namespace for URL-related functions.
@@ -104,7 +103,7 @@ namespace URLExt {
    * Return a parsed object that represents the values in a query string.
    */
   export
-  function queryStringToObject(value: string): JSONObject {
+  function queryStringToObject(value: string): { [key: string]: string } {
     return value.replace(/^\?/, '').split('&').reduce((acc, val) => {
       const [key, value] = val.split('=');
 

@@ -28,7 +28,7 @@ import {
 } from '@jupyterlab/codemirror';
 
 import {
-  Context, DocumentRegistry, TextModelFactory
+  Context, DocumentRegistry, TextModelFactory, DocumentWidget
 } from '@jupyterlab/docregistry';
 
 import {
@@ -68,7 +68,7 @@ describe('fileeditorcodewrapper', () => {
   let factoryService = new CodeMirrorEditorFactory();
   let modelFactory = new TextModelFactory();
   let mimeTypeService = new CodeMirrorMimeTypeService();
-  let context: DocumentRegistry.CodeContext;
+  let context: Context<DocumentRegistry.ICodeModel>;
   let manager: ServiceManager.IManager;
 
   before((done) => {
@@ -165,29 +165,6 @@ describe('fileeditorcodewrapper', () => {
         context.initialize(true).then(() => {
           return manager.contents.rename(context.path, uuid() + '.jl');
         }).catch(done);
-      });
-
-      it('should set the title for the path', () => {
-        expect(widget.title.label).to.be(context.path);
-      });
-
-      it('should update the title when the path changes', (done) => {
-        let path = uuid() + '.jl';
-        context.pathChanged.connect((sender, args) => {
-          expect(widget.title.label).to.be(path);
-          done();
-        });
-        context.initialize(true).then(() => {
-          return manager.contents.rename(context.path, path);
-        }).catch(done);
-      });
-
-      it('should add the dirty class when the model is dirty', (done) => {
-        context.initialize(true).catch(done);
-        context.ready.then(() => {
-          context.model.fromString('bar');
-          expect(widget.title.className).to.contain('jp-mod-dirty');
-        }).then(done, done);
       });
 
     });
@@ -295,8 +272,10 @@ describe('fileeditorcodewrapper', () => {
 
     describe('#createNewWidget()', () => {
 
-      it('should create an editor widget', () => {
-        expect(widgetFactory.createNew(context)).to.be.an(FileEditor);
+      it('should create a document widget', () => {
+        const d = widgetFactory.createNew(context);
+        expect(d).to.be.a(DocumentWidget);
+        expect(d.content).to.be.a(FileEditor);
       });
 
     });

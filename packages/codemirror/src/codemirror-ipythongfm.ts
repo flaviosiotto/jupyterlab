@@ -1,8 +1,7 @@
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
-import * as CodeMirror
-  from 'codemirror';
+import CodeMirror from 'codemirror';
 
 import 'codemirror/mode/stex/stex';
 import 'codemirror/mode/gfm/gfm';
@@ -20,7 +19,7 @@ import 'codemirror/addon/mode/multiplex';
  */
 CodeMirror.defineMode('ipythongfm', (config: CodeMirror.EditorConfiguration, modeOptions?: any) => {
   let gfmMode = CodeMirror.getMode(config, 'gfm');
-  let texMode = CodeMirror.getMode(config, 'stex');
+  let texMode = CodeMirror.getMode(config, { name: 'stex', inMathMode: true });
 
   return CodeMirror.multiplexingMode(
     gfmMode,

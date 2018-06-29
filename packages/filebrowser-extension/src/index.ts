@@ -6,7 +6,7 @@ import {
 } from '@jupyterlab/application';
 
 import {
-  Clipboard, InstanceTracker, ToolbarButton
+  Clipboard, InstanceTracker, MainAreaWidget, ToolbarButton
 } from '@jupyterlab/apputils';
 
 import {
@@ -92,6 +92,10 @@ namespace CommandIDs {
   // For main browser only.
   export
   const share = 'filebrowser:share-main';
+
+  // For main browser only.
+  export
+  const copyPath = 'filebrowser:copy-path';
 
   // For main browser only.
   export
@@ -396,13 +400,27 @@ function addCommands(app: JupyterLab, tracker: InstanceTracker<FileBrowser>, bro
   commands.addCommand(CommandIDs.share, {
     execute: () => {
       const path = encodeURIComponent(browser.selectedItems().next().path);
-      const tree = PageConfig.getTreeUrl();
+      const tree = PageConfig.getTreeUrl({ workspace: true });
 
       Clipboard.copyToSystem(URLExt.join(tree, path));
     },
     isVisible: () => toArray(browser.selectedItems()).length === 1,
     iconClass: 'jp-MaterialIcon jp-LinkIcon',
     label: 'Copy Shareable Link'
+  });
+
+  commands.addCommand(CommandIDs.copyPath, {
+    execute: () => {
+      const item = browser.selectedItems().next();
+      if (!item) {
+        return;
+      }
+
+      Clipboard.copyToSystem(item.path);
+    },
+    isVisible: () => toArray(browser.selectedItems()).length === 1,
+    iconClass: 'jp-MaterialIcon jp-FileIcon',
+    label: 'Copy Path'
   });
 
   commands.addCommand(CommandIDs.showBrowser, {
@@ -460,7 +478,6 @@ function createContextMenu(model: Contents.IModel | undefined, commands: Command
 
   const path = model.path;
   if (model.type !== 'directory') {
-    menu.addItem({ command: CommandIDs.openBrowserTab });
     const factories = registry.preferredWidgetFactories(path).map(f => f.name);
     if (path && factories.length > 1) {
       const command =  'docmanager:open';
@@ -471,6 +488,7 @@ function createContextMenu(model: Contents.IModel | undefined, commands: Command
       });
       menu.addItem({ type: 'submenu', submenu: openWith });
     }
+    menu.addItem({ command: CommandIDs.openBrowserTab });
   }
 
   menu.addItem({ command: CommandIDs.rename });
@@ -490,6 +508,7 @@ function createContextMenu(model: Contents.IModel | undefined, commands: Command
   }
 
   menu.addItem({ command: CommandIDs.share });
+  menu.addItem({ command: CommandIDs.copyPath });
 
   return menu;
 }
@@ -498,12 +517,14 @@ function createContextMenu(model: Contents.IModel | undefined, commands: Command
 /**
  * Create a launcher for a given filebrowser widget.
  */
-function createLauncher(commands: CommandRegistry, browser: FileBrowser): Promise<Launcher> {
+function createLauncher(commands: CommandRegistry, browser: FileBrowser): Promise<MainAreaWidget<Launcher>> {
   const { model } = browser;
 
   return commands.execute('launcher:create', { cwd: model.path })
-    .then((launcher: Launcher) => {
-      model.pathChanged.connect(() => { launcher.cwd = model.path; }, launcher);
-      return launcher;
-    });
+  .then((launcher: MainAreaWidget<Launcher>) => {
+    model.pathChanged.connect(() => {
+      launcher.content.cwd = model.path;
+    }, launcher);
+    return launcher;
+  });
 }

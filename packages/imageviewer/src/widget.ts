@@ -6,7 +6,7 @@ import {
 } from '@jupyterlab/coreutils';
 
 import {
-  ABCWidgetFactory, DocumentRegistry
+  ABCWidgetFactory, DocumentRegistry, IDocumentWidget, DocumentWidget
 } from '@jupyterlab/docregistry';
 
 import {
@@ -32,7 +32,7 @@ const IMAGE_CLASS = 'jp-ImageViewer';
  * A widget for images.
  */
 export
-class ImageViewer extends Widget implements DocumentRegistry.IReadyWidget {
+class ImageViewer extends Widget {
   /**
    * Construct a new image widget.
    */
@@ -52,6 +52,9 @@ class ImageViewer extends Widget implements DocumentRegistry.IReadyWidget {
       if (this.isDisposed) {
         return;
       }
+      const contents = context.contentsModel;
+      this._format = contents.format === 'base64' ? ';base64' : '';
+      this._mimeType = contents.mimetype;
       this._render();
       context.model.contentChanged.connect(this.update, this);
       context.fileChanged.connect(this.update, this);
@@ -173,7 +176,7 @@ class ImageViewer extends Widget implements DocumentRegistry.IReadyWidget {
       return;
     }
     let content = context.model.toString();
-    this._img.src = `data:${cm.mimetype};${cm.format},${content}`;
+    this._img.src = `data:${this._mimeType}${this._format},${content}`;
   }
 
   /**
@@ -187,6 +190,8 @@ class ImageViewer extends Widget implements DocumentRegistry.IReadyWidget {
     this._img.style.filter = `invert(${this._colorinversion})`;
   }
 
+  private _format: string;
+  private _mimeType: string;
   private _scale = 1;
   private _matrix = [1, 0, 0, 1];
   private _colorinversion = 0;
@@ -199,12 +204,14 @@ class ImageViewer extends Widget implements DocumentRegistry.IReadyWidget {
  * A widget factory for images.
  */
 export
-class ImageViewerFactory extends ABCWidgetFactory<ImageViewer, DocumentRegistry.IModel> {
+class ImageViewerFactory extends ABCWidgetFactory<IDocumentWidget<ImageViewer>> {
   /**
    * Create a new widget given a context.
    */
-  protected createNewWidget(context: DocumentRegistry.IContext<DocumentRegistry.IModel>): ImageViewer {
-    return new ImageViewer(context);
+  protected createNewWidget(context: DocumentRegistry.IContext<DocumentRegistry.IModel>): IDocumentWidget<ImageViewer> {
+    const content = new ImageViewer(context);
+    const widget = new DocumentWidget({ content, context });
+    return widget;
   }
 }
 

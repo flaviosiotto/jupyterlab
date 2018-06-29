@@ -1,8 +1,7 @@
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
-import * as CodeMirror
-  from 'codemirror';
+import CodeMirror from 'codemirror';
 
 import {
   Menu
@@ -27,6 +26,10 @@ import {
 import {
   ISettingRegistry, IStateDB
 } from '@jupyterlab/coreutils';
+
+import {
+  IDocumentWidget
+} from '@jupyterlab/docregistry';
 
 import {
   IEditorTracker, FileEditor
@@ -125,8 +128,8 @@ function activateEditorCommands(app: JupyterLab, tracker: IEditorTracker, mainMe
    */
   function updateTracker(): void {
     tracker.forEach(widget => {
-      if (widget.editor instanceof CodeMirrorEditor) {
-        let cm = widget.editor.editor;
+      if (widget.content.editor instanceof CodeMirrorEditor) {
+        let cm = widget.content.editor.editor;
         cm.setOption('keyMap', keyMap);
         cm.setOption('theme', theme);
       }
@@ -150,8 +153,8 @@ function activateEditorCommands(app: JupyterLab, tracker: IEditorTracker, mainMe
    * Handle the settings of new widgets.
    */
   tracker.widgetAdded.connect((sender, widget) => {
-    if (widget.editor instanceof CodeMirrorEditor) {
-      let cm = widget.editor.editor;
+    if (widget.content.editor instanceof CodeMirrorEditor) {
+      let cm = widget.content.editor.editor;
       cm.setOption('keyMap', keyMap);
       cm.setOption('theme', theme);
     }
@@ -214,7 +217,7 @@ function activateEditorCommands(app: JupyterLab, tracker: IEditorTracker, mainMe
       if (!widget) {
         return;
       }
-      let editor = widget.editor as CodeMirrorEditor;
+      let editor = widget.content.editor as CodeMirrorEditor;
       editor.execCommand('find');
     },
     isEnabled
@@ -227,7 +230,7 @@ function activateEditorCommands(app: JupyterLab, tracker: IEditorTracker, mainMe
       if (!widget) {
         return;
       }
-      let editor = widget.editor as CodeMirrorEditor;
+      let editor = widget.content.editor as CodeMirrorEditor;
       editor.execCommand('replace');
     },
     isEnabled
@@ -241,7 +244,7 @@ function activateEditorCommands(app: JupyterLab, tracker: IEditorTracker, mainMe
       if (name && widget) {
         let spec = Mode.findByName(name);
         if (spec) {
-          widget.model.mimeType = spec.mime;
+          widget.content.model.mimeType = spec.mime;
         }
       }
     },
@@ -251,7 +254,7 @@ function activateEditorCommands(app: JupyterLab, tracker: IEditorTracker, mainMe
       if (!widget) {
         return false;
       }
-      let mime = widget.model.mimeType;
+      let mime = widget.content.model.mimeType;
       let spec = Mode.findByMIME(mime);
       let name = spec && spec.name;
       return args['name'] === name;
@@ -289,6 +292,7 @@ function activateEditorCommands(app: JupyterLab, tracker: IEditorTracker, mainMe
     });
   });
 
+
   // Add some of the editor settings to the settings menu.
   mainMenu.settingsMenu.addGroup([
     { type: 'submenu' as Menu.ItemType, submenu: keyMapMenu },
@@ -301,13 +305,13 @@ function activateEditorCommands(app: JupyterLab, tracker: IEditorTracker, mainMe
   // Add find-replace capabilities to the edit menu.
   mainMenu.editMenu.findReplacers.add({
     tracker,
-    find: (widget: FileEditor) => {
-      let editor = widget.editor as CodeMirrorEditor;
+    find: (widget: IDocumentWidget<FileEditor>) => {
+      let editor = widget.content.editor as CodeMirrorEditor;
       editor.execCommand('find');
     },
-    findAndReplace: (widget: FileEditor) => {
-      let editor = widget.editor as CodeMirrorEditor;
+    findAndReplace: (widget: IDocumentWidget<FileEditor>) => {
+      let editor = widget.content.editor as CodeMirrorEditor;
       editor.execCommand('replace');
     }
-  } as IEditMenu.IFindReplacer<FileEditor>);
+  } as IEditMenu.IFindReplacer<IDocumentWidget<FileEditor>>);
 }

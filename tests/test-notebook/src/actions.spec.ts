@@ -28,7 +28,7 @@ import {
 } from '@jupyterlab/notebook';
 
 import {
-  acceptDialog, createClientSession, dismissDialog
+  acceptDialog, createClientSession, dismissDialog, moment
 } from '../../utils';
 
 import {
@@ -80,6 +80,26 @@ describe('@jupyterlab/notebook', () => {
 
     after(() => {
       return Promise.all([session.shutdown(), ipySession.shutdown()]);
+    });
+
+    describe('#executed', () => {
+
+      it('should emit when Markdown and code cells are run', () => {
+        let cell = widget.activeCell as CodeCell;
+        let next = widget.widgets[1] as MarkdownCell;
+        let emitted = 0;
+
+        widget.select(next);
+        cell.model.outputs.clear();
+        next.rendered = false;
+        NotebookActions.executed.connect(() => { emitted += 1; });
+
+        return NotebookActions.run(widget, session).then(result => {
+          expect(emitted).to.be(2);
+          expect(next.rendered).to.be(true);
+        });
+      });
+
     });
 
     describe('#splitCell({})', () => {
@@ -277,17 +297,14 @@ describe('@jupyterlab/notebook', () => {
         expect(widget.activeCellIndex).to.be(widget.widgets.length - 1);
       });
 
-      it('should add a code cell if all cells are deleted', (done) => {
+      it('should add a code cell if all cells are deleted', async () => {
         for (let i = 0; i < widget.widgets.length; i++) {
           widget.select(widget.widgets[i]);
         }
         NotebookActions.deleteCells(widget);
-        requestAnimationFrame(() => {
-          expect(widget.widgets.length).to.be(1);
-          expect(widget.activeCell).to.be.a(CodeCell);
-          done();
-        });
-
+        await moment();
+        expect(widget.widgets.length).to.be(1);
+        expect(widget.activeCell).to.be.a(CodeCell);
       });
 
       it('should be undo-able', () => {
@@ -473,7 +490,7 @@ describe('@jupyterlab/notebook', () => {
 
     describe('#run()', () => {
 
-      it('should run the selected cells', function () {
+      it('should run the selected cells', () => {
         let next = widget.widgets[1] as MarkdownCell;
         widget.select(next);
         let cell = widget.activeCell as CodeCell;
@@ -1106,16 +1123,14 @@ describe('@jupyterlab/notebook', () => {
         expect(widget.widgets[0].model.value.text).to.be(source);
       });
 
-      it('should add a new code cell if all cells were cut', (done) => {
+      it('should add a new code cell if all cells were cut', async () => {
         for (let i = 0; i < widget.widgets.length; i++) {
           widget.select(widget.widgets[i]);
         }
         NotebookActions.cut(widget);
-        requestAnimationFrame(() => {
-          expect(widget.widgets.length).to.be(1);
-          expect(widget.activeCell).to.be.a(CodeCell);
-          done();
-        });
+        await moment();
+        expect(widget.widgets.length).to.be(1);
+        expect(widget.activeCell).to.be.a(CodeCell);
       });
 
     });
@@ -1338,6 +1353,72 @@ describe('@jupyterlab/notebook', () => {
         expect(widget.activeCellIndex).to.be(-1);
       });
 
+    });
+
+    describe('#persistViewState()', () => {
+      it('input hidden, output hidden and scrolled', () => {
+        for (const cell of widget.widgets) {
+          cell.inputHidden = true;
+          if (cell instanceof CodeCell) {
+            cell.outputHidden = true;
+            cell.outputsScrolled = true;
+          }
+        }
+        NotebookActions.persistViewState(widget);
+        for (const cell of widget.widgets) {
+          if (cell instanceof CodeCell) {
+            expect(cell.model.metadata.get('collapsed')).to.be(true);
+            expect(cell.model.metadata.get('scrolled')).to.be(true);
+            expect(cell.model.metadata.get('jupyter')).to.eql({
+              source_hidden: true,
+              outputs_hidden: true
+            });
+          } else {
+            expect(cell.model.metadata.get('jupyter')).to.eql({
+              source_hidden: true,
+            });
+          }
+        }
+      });
+
+      it('input hidden, output hidden and not scrolled', () => {
+        for (const cell of widget.widgets) {
+          cell.inputHidden = false;
+          if (cell instanceof CodeCell) {
+            cell.outputHidden = false;
+            cell.outputsScrolled = false;
+          }
+        }
+        NotebookActions.persistViewState(widget);
+        for (const cell of widget.widgets) {
+          if (cell instanceof CodeCell) {
+            expect(cell.model.metadata.has('collapsed')).to.be(false);
+            expect(cell.model.metadata.has('scrolled')).to.be(false);
+          }
+          expect(cell.model.metadata.has('jupyter')).to.be(false);
+        }
+      });
+
+      it('input hidden, output shown and not scrolled', () => {
+
+        for (const cell of widget.widgets) {
+          cell.inputHidden = true;
+          if (cell instanceof CodeCell) {
+            cell.outputHidden = false;
+            cell.outputsScrolled = false;
+          }
+        }
+        NotebookActions.persistViewState(widget);
+        for (const cell of widget.widgets) {
+          if (cell instanceof CodeCell) {
+            expect(cell.model.metadata.has('collapsed')).to.be(false);
+            expect(cell.model.metadata.has('scrolled')).to.be(false);
+          }
+          expect(cell.model.metadata.get('jupyter')).to.eql({
+            source_hidden: true
+          });
+        }
+      });
     });
 
     describe('#setMarkdownHeader()', () => {

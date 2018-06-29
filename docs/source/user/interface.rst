@@ -19,6 +19,14 @@ cell tools inspector <notebook>`, and the :ref:`tabs list <tabs>`.
    :align: center
    :class: jp-screenshot
 
+JupyterLab sessions always reside in a :ref:`workspace <url-workspaces>`.
+Workspaces contain the state of JupyterLab: the files that are currently open,
+the layout of the application areas and tabs, etc.
+Workspaces can be saved on the server with
+:ref:`named workspace URLs <url-workspaces>`.
+To learn more about URLs in Jupyterlab, visit :ref:`urls`.
+
+
 .. _menu-bar:
 
 Menu Bar
@@ -57,11 +65,11 @@ and a list of tabs in the main work area:
 
 .. _left-sidebar-toggle:
 
-The left sidebar can be collapsed or expanded by selecting "Show Left Area"
+The left sidebar can be collapsed or expanded by selecting "Show Left Sidebar"
 in the View menu or by clicking on the active sidebar tab:
 
 
-.. raw:: html 
+.. raw:: html
 
   <div class="jp-youtube-video">
      <iframe src="https://www.youtube-nocookie.com/embed/PlJGecfetek?rel=0&amp;showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>

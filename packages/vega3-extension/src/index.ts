@@ -15,7 +15,7 @@ import {
   IRenderMime
 } from '@jupyterlab/rendermime-interfaces';
 
-import vegaEmbed, { Mode, vega } from 'vega-embed';
+import vegaEmbed, { Mode, vega, EmbedOptions } from 'vega-embed';
 
 import '../style/index.css';
 
@@ -75,19 +75,26 @@ class RenderedVega3 extends Widget implements IRenderMime.IRenderer {
    */
   renderModel(model: IRenderMime.IMimeModel): Promise<void> {
     const data = model.data[this._mimeType] as JSONObject;
-    const metadata = model.metadata[this._mimeType] as { embed_options?: JSONObject };
+    const metadata = model.metadata[this._mimeType] as { embed_options?: EmbedOptions };
     const embedOptions = metadata && metadata.embed_options ? metadata.embed_options : {};
     const mode: Mode = this._mimeType === VEGA_MIME_TYPE ? 'vega' : 'vega-lite';
     return this._resolver.resolveUrl('').then((path: string) => {
       return this._resolver.getDownloadUrl(path).then(baseURL => {
-        const loader = vega.loader({ baseURL });
-        const options = {
+        const loader = vega.loader({
+          baseURL,
+          http: { credentials: 'same-origin' }
+        });
+        const options: EmbedOptions = {
           actions: true,
+          defaultStyle: true,
           ...embedOptions,
           mode,
           loader
         };
-        return vegaEmbed(this.node as HTMLBaseElement, data, options).then(result => {
+        const el = document.createElement('div');
+        this.node.innerHTML = '';  // clear the output before attaching a chart
+        this.node.appendChild(el);
+        return vegaEmbed(el, data, options).then(result => {
           // Add png representation of vega chart to output
           if (!model.data['image/png']) {
             return result.view.toImageURL('png').then(imageData => {
@@ -95,17 +102,6 @@ class RenderedVega3 extends Widget implements IRenderMime.IRenderer {
               model.setData({ data });
             });
           }
-          return void 0;
-        }).catch(error => {
-          // Add stderr message to output
-          const stderr = `Javascript Error: ${error.message}. This usually means there's a typo in your chart specification. See the JavaScript console for the full traceback.`;
-          const data = { 'application/vnd.jupyter.stderr': stderr };
-          model.setData({ data });
-          // Manually append stderr message to output and modify node attributes
-          this.node.innerHTML = `<pre>Javascript Error: ${error.message}. This usually means there's a typo in your chart specification. See the JavaScript console for the full traceback.</pre>`;
-          this.addClass('jp-RenderedText');
-          this.removeClass(VEGA_COMMON_CLASS);
-          this.node.setAttribute('data-mime-type', 'application/vnd.jupyter.stderr');
           return void 0;
         });
       });

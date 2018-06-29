@@ -135,6 +135,7 @@ class OutputArea extends Widget {
       this._insertOutput(i, output);
     }
     model.changed.connect(this.onModelChanged, this);
+    model.stateChanged.connect(this.onStateChanged, this);
   }
 
   /**
@@ -251,6 +252,16 @@ class OutputArea extends Widget {
   }
 
   /**
+   * Follow changes on the output model state.
+   */
+  protected onStateChanged(sender: IOutputAreaModel): void {
+    for (let i = 0; i < this.model.length; i++) {
+      this._setOutput(i, this.model.get(i));
+    }
+    this.outputLengthChanged.emit(this.model.length);
+  }
+
+  /**
    * Clear the widget inputs and outputs.
    */
   private _clear(): void {
@@ -319,7 +330,7 @@ class OutputArea extends Widget {
   private _setOutput(index: number, model: IOutputModel): void {
     let layout = this.layout as PanelLayout;
     let panel = layout.widgets[index] as Panel;
-    let renderer = panel.widgets[1] as IRenderMime.IRenderer;
+    let renderer = (panel.widgets ? panel.widgets[1] : panel) as IRenderMime.IRenderer;
     if (renderer.renderModel) {
       renderer.renderModel(model);
     } else {
@@ -382,7 +393,7 @@ class OutputArea extends Widget {
   protected createRenderedMimetype(model: IOutputModel): Widget {
     let widget: Widget;
     let mimeType = this.rendermime.preferredMimeType(
-      model.data, !model.trusted
+      model.data, model.trusted ? 'any' : 'ensure'
     );
     if (mimeType) {
       let metadata = model.metadata;
@@ -400,10 +411,20 @@ class OutputArea extends Widget {
       if (isolated === true) {
         output = new Private.IsolatedRenderer(output);
       }
-      output.renderModel(model);
+      output.renderModel(model).catch(error => {
+        // Manually append error message to output
+        output.node.innerHTML = `<pre>Javascript Error: ${error.message}</pre>`;
+        // Remove mime-type-specific CSS classes
+        output.node.className = 'p-Widget jp-RenderedText';
+        output.node.setAttribute('data-mime-type', 'application/vnd.jupyter.stderr');
+      });
       widget = output;
     } else {
       widget = new Widget();
+      widget.node.innerHTML =
+        `No ${model.trusted ? '' : '(safe) '}renderer could be ` +
+        'found for output. It has the following MIME types: ' +
+        Object.keys(model.data).join(', ');
     }
     return widget;
   }

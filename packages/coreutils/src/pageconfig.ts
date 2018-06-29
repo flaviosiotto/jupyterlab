@@ -5,8 +5,7 @@ import {
   JSONExt
 } from '@phosphor/coreutils';
 
-import * as minimist
-  from 'minimist';
+import minimist from 'minimist';
 
 import {
   URLExt
@@ -25,6 +24,17 @@ declare var require: any;
  */
 export
 namespace PageConfig {
+  /**
+   * The tree URL construction options.
+   */
+  export
+  interface ITreeOptions {
+    /**
+     * If `true`, the tree URL will include the current workspace, if any.
+     */
+    workspace?: boolean;
+  }
+
   /**
    * Get global configuration data for the Jupyter application.
    *
@@ -122,10 +132,22 @@ namespace PageConfig {
 
   /**
    * Get the tree url for a JupyterLab application.
+   *
+   * @param options - The tree URL construction options.
    */
   export
-  function getTreeUrl(): string {
-    return URLExt.join(getBaseUrl(), getOption('pageUrl'), 'tree');
+  function getTreeUrl(options: ITreeOptions = { }): string {
+    const base = getBaseUrl();
+    const page = getOption('pageUrl');
+    const workspaces = getOption('workspacesUrl');
+    const workspace = getOption('workspace');
+    const includeWorkspace = !!options.workspace;
+
+    if (includeWorkspace && workspace) {
+      return URLExt.join(base, workspaces, workspace, 'tree');
+    } else {
+      return URLExt.join(base, page, 'tree');
+    }
   }
 
   /**
@@ -155,6 +177,19 @@ namespace PageConfig {
   function getToken(): string {
     return getOption('token') || Private.getBodyData('jupyterApiToken');
   }
+
+  /**
+   * Get the Notebook version info [major, minor, patch].
+   */
+  export
+  function getNotebookVersion(): [number, number, number] {
+    const notebookVersion = getOption('notebookVersion');
+    if (notebookVersion === '') {
+      return [0, 0, 0];
+    }
+    return JSON.parse(notebookVersion);
+  }
+
 
   /**
    * Private page config data for the Jupyter application.

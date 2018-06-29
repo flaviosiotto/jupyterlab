@@ -6,7 +6,7 @@ import {
 } from '@jupyterlab/application';
 
 import {
-  Dialog, ICommandPalette, InstanceTracker, showDialog
+  Dialog, IClientSession, ICommandPalette, InstanceTracker, showDialog
 } from '@jupyterlab/apputils';
 
 import {
@@ -18,7 +18,7 @@ import {
 } from '@jupyterlab/console';
 
 import {
-  PageConfig
+  ISettingRegistry, PageConfig
 } from '@jupyterlab/coreutils';
 
 import {
@@ -42,11 +42,11 @@ import {
 } from '@phosphor/algorithm';
 
 import {
-  ReadonlyJSONObject
+  JSONExt, ReadonlyJSONObject
 } from '@phosphor/coreutils';
 
 import {
-  DockLayout
+  DockLayout, Menu
 } from '@phosphor/widgets';
 
 
@@ -89,6 +89,12 @@ namespace CommandIDs {
 
   export
   const toggleShowAllActivity = 'console:toggle-show-all-kernel-activity';
+
+  export
+  const enterToExecute = 'console:enter-to-execute';
+
+  export
+  const shiftEnterToExecute = 'console:shift-enter-to-execute';
 }
 
 
@@ -105,7 +111,8 @@ const tracker: JupyterLabPlugin<IConsoleTracker> = {
     IEditorServices,
     ILayoutRestorer,
     IFileBrowserFactory,
-    IRenderMimeRegistry
+    IRenderMimeRegistry,
+    ISettingRegistry
   ],
   optional: [ILauncher],
   activate: activateConsole,
@@ -138,7 +145,7 @@ export default plugins;
 /**
  * Activate the console extension.
  */
-function activateConsole(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette, contentFactory: ConsolePanel.IContentFactory,  editorServices: IEditorServices, restorer: ILayoutRestorer, browserFactory: IFileBrowserFactory, rendermime: IRenderMimeRegistry, launcher: ILauncher | null): IConsoleTracker {
+function activateConsole(app: JupyterLab, mainMenu: IMainMenu, palette: ICommandPalette, contentFactory: ConsolePanel.IContentFactory,  editorServices: IEditorServices, restorer: ILayoutRestorer, browserFactory: IFileBrowserFactory, rendermime: IRenderMimeRegistry, settingRegistry: ISettingRegistry, launcher: ILauncher | null): IConsoleTracker {
   const manager = app.serviceManager;
   const { commands, shell } = app;
   const category = 'Console';
@@ -157,11 +164,6 @@ function activateConsole(app: JupyterLab, mainMenu: IMainMenu, palette: ICommand
     when: manager.ready
   });
 
-  // The launcher callback.
-  let callback = (cwd: string, name: string) => {
-    return createConsole({ basePath: cwd, kernelPreference: { name } });
-  };
-
   // Add a launcher item if the launcher is available.
   if (launcher) {
     manager.ready.then(() => {
@@ -171,7 +173,6 @@ function activateConsole(app: JupyterLab, mainMenu: IMainMenu, palette: ICommand
       }
       let baseUrl = PageConfig.getBaseUrl();
       for (let name in specs.kernelspecs) {
-        let displayName = specs.kernelspecs[name].display_name;
         let rank = name === specs.default ? 0 : Infinity;
         let kernelIconUrl = specs.kernelspecs[name].resources['logo-64x64'];
         if (kernelIconUrl) {
@@ -179,11 +180,9 @@ function activateConsole(app: JupyterLab, mainMenu: IMainMenu, palette: ICommand
           kernelIconUrl = baseUrl + kernelIconUrl.slice(index);
         }
         launcher.add({
-          displayName,
+          command: CommandIDs.create,
+          args: { isLauncher: true, kernelPreference: { name } },
           category: 'Console',
-          name,
-          iconClass: 'jp-CodeConsoleIcon',
-          callback,
           rank,
           kernelIconUrl
         });
@@ -207,6 +206,7 @@ function activateConsole(app: JupyterLab, mainMenu: IMainMenu, palette: ICommand
         contentFactory,
         mimeTypeService: editorServices.mimeTypeService,
         rendermime,
+        setBusy: app.setBusy.bind(app),
         ...options as Partial<ConsolePanel.IOptions>
       });
 
@@ -257,9 +257,20 @@ function activateConsole(app: JupyterLab, mainMenu: IMainMenu, palette: ICommand
 
   command = CommandIDs.create;
   commands.addCommand(command, {
-    label: args => args['isPalette'] ? 'New Console' : 'Console',
-    execute: (args: Partial<ConsolePanel.IOptions>) => {
-      let basePath = args.basePath || browserFactory.defaultBrowser.model.path;
+    label: args => {
+      if (args['isPalette']) {
+        return 'New Console';
+      } else if (args['isLauncher'] && args['kernelPreference']) {
+        const kernelPreference =
+          args['kernelPreference'] as IClientSession.IKernelPreference;
+        return manager.specs.kernelspecs[kernelPreference.name].display_name;
+      }
+      return 'Console';
+    },
+    iconClass: 'jp-CodeConsoleIcon',
+    execute: args => {
+      let basePath = args['basePath'] as string || args['cwd'] as string ||
+        browserFactory.defaultBrowser.model.path;
       return createConsole({ basePath, ...args });
     }
   });
@@ -416,6 +427,89 @@ function activateConsole(app: JupyterLab, mainMenu: IMainMenu, palette: ICommand
                      false,
     isEnabled
   });
+
+  // Constants for setting the shortcuts for executing console cells.
+  const shortcutPlugin = '@jupyterlab/shortcuts-extension:plugin';
+  const selector = '.jp-CodeConsole-promptCell';
+
+  // Keep updated keybindings for the console commands related to execution.
+  let linebreak = find(commands.keyBindings,
+    kb => kb.command === CommandIDs.linebreak);
+  let runUnforced = find(commands.keyBindings,
+    kb => kb.command === CommandIDs.runUnforced);
+  let runForced = find(commands.keyBindings,
+    kb => kb.command === CommandIDs.runForced);
+  commands.keyBindingChanged.connect((s, args) => {
+    if (args.binding.command === CommandIDs.linebreak) {
+      linebreak = args.type === 'added' ? args.binding : undefined;
+      return;
+    }
+    if (args.binding.command === CommandIDs.runUnforced) {
+      runUnforced = args.type === 'added' ? args.binding : undefined;
+      return;
+    }
+    if (args.binding.command === CommandIDs.runForced) {
+      runForced = args.type === 'added' ? args.binding : undefined;
+      return;
+    }
+  });
+
+  commands.addCommand(CommandIDs.shiftEnterToExecute, {
+    label: 'Execute with Shift+Enter',
+    isToggled: () => {
+      // Only show as toggled if the shortcuts are strictly
+      // The Shift+Enter ones.
+      return linebreak && JSONExt.deepEqual(linebreak.keys, ['Enter']) &&
+             runUnforced === undefined &&
+             runForced && JSONExt.deepEqual(runForced.keys, ['Shift Enter']);
+    },
+    execute: () => {
+      const first = settingRegistry.set(shortcutPlugin, CommandIDs.linebreak, {
+        command: CommandIDs.linebreak,
+        keys: ['Enter'],
+        selector
+      });
+      const second = settingRegistry.remove(shortcutPlugin, CommandIDs.runUnforced);
+      const third = settingRegistry.set(shortcutPlugin, CommandIDs.runForced, {
+        command: CommandIDs.runForced,
+        keys: ['Shift Enter'],
+        selector
+      });
+
+      return Promise.all([first, second, third]);
+    }
+  });
+
+  commands.addCommand(CommandIDs.enterToExecute, {
+    label: 'Execute with Enter',
+    isToggled: () => {
+      // Only show as toggled if the shortcuts are strictly
+      // The Enter ones.
+      return linebreak && JSONExt.deepEqual(linebreak.keys, ['Ctrl Enter']) &&
+             runUnforced && JSONExt.deepEqual(runUnforced.keys, ['Enter']) &&
+             runForced && JSONExt.deepEqual(runForced.keys, ['Shift Enter']);
+    },
+    execute: () => {
+      const first = settingRegistry.set(shortcutPlugin, CommandIDs.linebreak, {
+        command: CommandIDs.linebreak,
+        keys: ['Ctrl Enter'],
+        selector
+      });
+      const second = settingRegistry.set(shortcutPlugin, CommandIDs.runUnforced, {
+        command: CommandIDs.runUnforced,
+        keys: ['Enter'],
+        selector
+      });
+      const third = settingRegistry.set(shortcutPlugin, CommandIDs.runForced, {
+        command: CommandIDs.runForced,
+        keys: ['Shift Enter'],
+        selector
+      });
+
+      return Promise.all([first, second, third]);
+    }
+  });
+
   // Add command palette items
   [
     CommandIDs.create,
@@ -496,6 +590,15 @@ function activateConsole(app: JupyterLab, mainMenu: IMainMenu, palette: ICommand
     noun: 'Console Cells',
     clearCurrent: (current: ConsolePanel) => { return current.console.clear(); }
   } as IEditMenu.IClearer<ConsolePanel>);
+
+  // Add the execute keystroke setting submenu.
+  const executeMenu = new Menu({ commands });
+  executeMenu.title.label = 'Console Run Keystroke';
+  executeMenu.addItem({ command: CommandIDs.enterToExecute });
+  executeMenu.addItem({ command: CommandIDs.shiftEnterToExecute });
+  mainMenu.settingsMenu.addGroup([{
+    type: 'submenu' as Menu.ItemType, submenu: executeMenu
+  }], 10);
 
   // Add kernel information to the application help menu.
   mainMenu.helpMenu.kernelUsers.add({

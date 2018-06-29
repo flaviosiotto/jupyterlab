@@ -22,6 +22,10 @@ import {
 } from '@jupyterlab/coreutils';
 
 import {
+  IDocumentWidget
+} from '@jupyterlab/docregistry';
+
+import {
   IFileBrowserFactory
 } from '@jupyterlab/filebrowser';
 
@@ -119,7 +123,7 @@ function activate(app: JupyterLab, consoleTracker: IConsoleTracker, editorServic
     factoryOptions: { name: FACTORY, fileTypes: ['*'], defaultFor: ['*'] }
   });
   const { commands, restored } = app;
-  const tracker = new InstanceTracker<FileEditor>({ namespace });
+  const tracker = new InstanceTracker<IDocumentWidget<FileEditor>>({ namespace });
   const isEnabled = () => tracker.currentWidget !== null &&
                           tracker.currentWidget === app.shell.currentWidget;
 
@@ -142,13 +146,15 @@ function activate(app: JupyterLab, consoleTracker: IConsoleTracker, editorServic
       config[key] = (cached[key] === null || cached[key] === undefined) ?
         CodeEditor.defaultConfig[key] : cached[key];
     });
+    // Trigger a refresh of the rendered commands
+    app.commands.notifyCommandChanged();
   }
 
   /**
    * Update the settings of the current tracker instances.
    */
   function updateTracker(): void {
-    tracker.forEach(widget => { updateWidget(widget); });
+    tracker.forEach(widget => { updateWidget(widget.content); });
   }
 
   /**
@@ -161,6 +167,7 @@ function activate(app: JupyterLab, consoleTracker: IConsoleTracker, editorServic
     });
   }
 
+  // Add a console creator to the File menu
   // Fetch the initial state of the settings.
   Promise.all([settingRegistry.load(id), restored]).then(([settings]) => {
     updateSettings(settings);
@@ -180,13 +187,13 @@ function activate(app: JupyterLab, consoleTracker: IConsoleTracker, editorServic
     // Notify the instance tracker if restore data needs to update.
     widget.context.pathChanged.connect(() => { tracker.save(widget); });
     tracker.add(widget);
-    updateWidget(widget);
+    updateWidget(widget.content);
   });
   app.docRegistry.addWidgetFactory(factory);
 
   // Handle the settings of new widgets.
   tracker.widgetAdded.connect((sender, widget) => {
-    updateWidget(widget);
+    updateWidget(widget.content);
   });
 
   commands.addCommand(CommandIDs.lineNumbers, {
@@ -282,7 +289,7 @@ function activate(app: JupyterLab, consoleTracker: IConsoleTracker, editorServic
   commands.addCommand(CommandIDs.runCode, {
     execute: () => {
       // Run the appropriate code, taking into account a ```fenced``` code block.
-      const widget = tracker.currentWidget;
+      const widget = tracker.currentWidget.content;
 
       if (!widget) {
         return;
@@ -369,20 +376,19 @@ function activate(app: JupyterLab, consoleTracker: IConsoleTracker, editorServic
   commands.addCommand(CommandIDs.createNew, {
     label: 'Text File',
     caption: 'Create a new text file',
-    execute: () => {
-      let cwd = browserFactory.defaultBrowser.model.path;
-      return createNew(cwd);
+    iconClass: EDITOR_ICON_CLASS,
+    execute: args => {
+      let cwd = args['cwd'] || browserFactory.defaultBrowser.model.path;
+      return createNew(cwd as string);
     }
   });
 
   // Add a launcher item if the launcher is available.
   if (launcher) {
     launcher.add({
-      displayName: 'Text Editor',
+      command: CommandIDs.createNew,
       category: 'Other',
       rank: 1,
-      iconClass: EDITOR_ICON_CLASS,
-      callback: createNew
     });
   }
 
@@ -428,29 +434,29 @@ function activate(app: JupyterLab, consoleTracker: IConsoleTracker, editorServic
     // Add undo/redo hooks to the edit menu.
     menu.editMenu.undoers.add({
       tracker,
-      undo: widget => { widget.editor.undo(); },
-      redo: widget => { widget.editor.redo(); }
-    } as IEditMenu.IUndoer<FileEditor>);
+      undo: widget => { widget.content.editor.undo(); },
+      redo: widget => { widget.content.editor.redo(); }
+    } as IEditMenu.IUndoer<IDocumentWidget<FileEditor>>);
 
     // Add editor view options.
     menu.viewMenu.editorViewers.add({
       tracker,
       toggleLineNumbers: widget => {
-        const lineNumbers = !widget.editor.getOption('lineNumbers');
-        widget.editor.setOption('lineNumbers', lineNumbers);
+        const lineNumbers = !widget.content.editor.getOption('lineNumbers');
+        widget.content.editor.setOption('lineNumbers', lineNumbers);
       },
       toggleWordWrap: widget => {
-        const wordWrap = !widget.editor.getOption('lineWrap');
-        widget.editor.setOption('lineWrap', wordWrap);
+        const wordWrap = !widget.content.editor.getOption('lineWrap');
+        widget.content.editor.setOption('lineWrap', wordWrap);
       },
       toggleMatchBrackets: widget => {
-        const matchBrackets = !widget.editor.getOption('matchBrackets');
-        widget.editor.setOption('matchBrackets', matchBrackets);
+        const matchBrackets = !widget.content.editor.getOption('matchBrackets');
+        widget.content.editor.setOption('matchBrackets', matchBrackets);
       },
-      lineNumbersToggled: widget => widget.editor.getOption('lineNumbers'),
-      wordWrapToggled: widget => widget.editor.getOption('lineWrap'),
-      matchBracketsToggled: widget => widget.editor.getOption('matchBrackets')
-    } as IViewMenu.IEditorViewer<FileEditor>);
+      lineNumbersToggled: widget => widget.content.editor.getOption('lineNumbers'),
+      wordWrapToggled: widget => widget.content.editor.getOption('lineWrap'),
+      matchBracketsToggled: widget => widget.content.editor.getOption('matchBrackets')
+    } as IViewMenu.IEditorViewer<IDocumentWidget<FileEditor>>);
 
     // Add a console creator the the Kernel menu.
     menu.fileMenu.consoleCreators.add({
@@ -463,7 +469,7 @@ function activate(app: JupyterLab, consoleTracker: IConsoleTracker, editorServic
         };
         return commands.execute('console:create', options);
       }
-    } as IFileMenu.IConsoleCreator<FileEditor>);
+    } as IFileMenu.IConsoleCreator<IDocumentWidget<FileEditor>>);
 
     // Add a code runner to the Run menu.
     menu.runMenu.codeRunners.add({
@@ -479,7 +485,7 @@ function activate(app: JupyterLab, consoleTracker: IConsoleTracker, editorServic
         return found;
       },
       run: () => commands.execute(CommandIDs.runCode)
-    } as IRunMenu.ICodeRunner<FileEditor>);
+    } as IRunMenu.ICodeRunner<IDocumentWidget<FileEditor>>);
   }
 
   app.contextMenu.addItem({

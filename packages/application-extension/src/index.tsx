@@ -6,7 +6,7 @@ import {
 } from '@jupyterlab/application';
 
 import {
-  Dialog, ICommandPalette, showDialog
+  Dialog, ICommandPalette, IWindowResolver, showDialog, showErrorMessage
 } from '@jupyterlab/apputils';
 
 import {
@@ -54,7 +54,7 @@ namespace CommandIDs {
  */
 namespace Patterns {
   export
-  const tree = /^\/tree\/(.+)/;
+  const tree = /[^?]*(\/tree\/([^?]+))/;
 }
 
 
@@ -63,8 +63,15 @@ namespace Patterns {
  */
 const main: JupyterLabPlugin<void> = {
   id: '@jupyterlab/application-extension:main',
-  requires: [ICommandPalette],
-  activate: (app: JupyterLab, palette: ICommandPalette) => {
+  requires: [ICommandPalette, IRouter, IWindowResolver],
+  activate: (app: JupyterLab, palette: ICommandPalette, router: IRouter, resolver: IWindowResolver) => {
+    // Requiring the window resolver guarantees that the application extension
+    // only loads if there is a viable window name. Otherwise, the application
+    // will short-circuit and ask the user to navigate away.
+    const workspace = resolver.name ? `"${resolver.name}"` : '[default: /lab]';
+
+    console.log(`Starting application in workspace: ${workspace}`);
+
     // If there were errors registering plugins, tell the user.
     if (app.registerPluginErrors.length !== 0) {
       const body = (
@@ -72,26 +79,20 @@ const main: JupyterLabPlugin<void> = {
           {app.registerPluginErrors.map(e => e.message).join('\n')}
         </pre>
       );
-      let options = {
-        title: 'Error Registering Plugins',
-        body,
-        buttons: [Dialog.okButton()],
-        okText: 'DISMISS'
-      };
-      showDialog(options).then(() => { /* no-op */ });
+
+      showErrorMessage('Error Registering Plugins', { message: body });
     }
 
     addCommands(app, palette);
 
-    // If the currently active widget changes,
+    // If the application shell layout is modified,
     // trigger a refresh of the commands.
-    app.shell.currentChanged.connect(() => {
-      app.commands.notifyCommandChanged(CommandIDs.closeAll);
+    app.shell.layoutModified.connect(() => {
+      app.commands.notifyCommandChanged();
     });
 
-    let builder = app.serviceManager.builder;
-
-    let doBuild = () => {
+    const builder = app.serviceManager.builder;
+    const build = () => {
       return builder.build().then(() => {
         return showDialog({
           title: 'Build Complete',
@@ -101,40 +102,36 @@ const main: JupyterLabPlugin<void> = {
         });
       }).then(result => {
         if (result.button.accept) {
-          location.reload();
+          router.reload();
         }
       }).catch(err => {
-        showDialog({
-          title: 'Build Failed',
-          body: (<pre>{err.message}</pre>)
-        });
+        showErrorMessage('Build Failed', { message: <pre>{err.message}</pre> });
       });
     };
 
     if (builder.isAvailable && builder.shouldCheck) {
       builder.getStatus().then(response => {
         if (response.status === 'building') {
-          return doBuild();
+          return build();
         }
+
         if (response.status !== 'needed') {
           return;
         }
-        let body = (<div>
+
+        const body = (<div>
           <p>
             JupyterLab build is suggested:
             <br />
             <pre>{response.message}</pre>
           </p>
         </div>);
+
         showDialog({
           title: 'Build Recommended',
           body,
           buttons: [Dialog.cancelButton(), Dialog.okButton({ label: 'BUILD' })]
-        }).then(result => {
-          if (result.button.accept) {
-            return doBuild();
-          }
-        });
+        }).then(result => result.button.accept ? build() : undefined);
       });
     }
 
@@ -191,23 +188,6 @@ const router: JupyterLabPlugin<IRouter> = {
     const base = PageConfig.getOption('pageUrl');
     const router = new Router({ base, commands });
 
-    commands.addCommand(CommandIDs.tree, {
-      execute: (args: IRouter.ILocation) => {
-        const path = decodeURIComponent((args.path.match(Patterns.tree)[1]));
-
-        // File browser navigation waits for the application to be restored.
-        // As a result, this command cannot return a promise because it would
-        // create a circular dependency on the restored promise that would
-        // cause the application to never restore.
-        const opened = commands.execute('filebrowser:navigate-main', { path });
-
-        // Change the URL back to the base application URL without adding the
-        // URL change to the browser history.
-        opened.then(() => { router.navigate('', { silent: true }); });
-      }
-    });
-
-    router.register({ command: CommandIDs.tree, pattern: Patterns.tree });
     app.started.then(() => {
       // Route the very first request on load.
       router.route();
@@ -224,6 +204,37 @@ const router: JupyterLabPlugin<IRouter> = {
 
 
 /**
+ * The tree route handler provider.
+ */
+const tree: JupyterLabPlugin<void> = {
+  id: '@jupyterlab/application-extension:tree',
+  autoStart: true,
+  requires: [IRouter],
+  activate: (app: JupyterLab, router: IRouter) => {
+    const { commands } = app;
+
+    commands.addCommand(CommandIDs.tree, {
+      execute: (args: IRouter.ILocation) => {
+        const { request } = args;
+        const path = decodeURIComponent((args.path.match(Patterns.tree)[2]));
+        const url = request.replace(request.match(Patterns.tree)[1], '');
+        const immediate = true;
+
+        // Silently remove the tree portion of the URL leaving the rest intact.
+        router.navigate(url, { silent: true });
+
+        return commands.execute('filebrowser:navigate-main', { path })
+          .then(() => commands.execute('apputils:save-statedb', { immediate }))
+          .catch(reason => { console.warn(`Tree routing failed:`, reason); });
+      }
+    });
+
+    router.register({ command: CommandIDs.tree, pattern: Patterns.tree });
+  }
+};
+
+
+/**
  * The default URL not found extension.
  */
 const notfound: JupyterLabPlugin<void> = {
@@ -231,6 +242,9 @@ const notfound: JupyterLabPlugin<void> = {
   activate: (app: JupyterLab, router: IRouter) => {
     const bad = PageConfig.getOption('notFoundUrl');
     const base = router.base;
+    const message = `
+      The path: ${bad} was not found. JupyterLab redirected to: ${base}
+    `;
 
     if (!bad) {
       return;
@@ -240,14 +254,27 @@ const notfound: JupyterLabPlugin<void> = {
     // URL change to the browser history.
     router.navigate('', { silent: true });
 
-    showDialog({
-      title: 'Path Not Found',
-      body: `The path: ${bad} was not found. JupyterLab redirected to: ${base}`,
-      buttons: [Dialog.okButton()]
-    });
+    showErrorMessage('Path Not Found', { message });
   },
   requires: [IRouter],
   autoStart: true
+};
+
+
+/**
+ * Change the favicon changing based on the busy status;
+ */
+const busy: JupyterLabPlugin<void> = {
+  id: '@jupyterlab/application-extension:faviconbusy',
+  activate: async (app: JupyterLab) => {
+    app.busySignal.connect((_, isBusy) => {
+      const filename = isBusy ? 'favicon-busy-1.ico' : 'favicon.ico';
+      const favicon = document.querySelector('link[rel="shortcut icon"]') as HTMLLinkElement;
+      favicon.href = `/static/base/images/${filename}`;
+    });
+  },
+  requires: [],
+  autoStart: true,
 };
 
 
@@ -280,7 +307,7 @@ function addCommands(app: JupyterLab, palette: ICommandPalette): void {
 
   command = CommandIDs.toggleLeftArea;
   app.commands.addCommand(command, {
-    label: args => 'Show Left Area',
+    label: args => 'Show Left Sidebar',
     execute: () => {
       if (app.shell.leftCollapsed) {
         app.shell.expandLeft();
@@ -298,7 +325,7 @@ function addCommands(app: JupyterLab, palette: ICommandPalette): void {
 
   command = CommandIDs.toggleRightArea;
   app.commands.addCommand(command, {
-    label: args => 'Show Right Area',
+    label: args => 'Show Right Sidebar',
     execute: () => {
       if (app.shell.rightCollapsed) {
         app.shell.expandRight();
@@ -358,6 +385,8 @@ function addCommands(app: JupyterLab, palette: ICommandPalette): void {
 /**
  * Export the plugins as default.
  */
-const plugins: JupyterLabPlugin<any>[] = [main, layout, router, notfound];
+const plugins: JupyterLabPlugin<any>[] = [
+  main, layout, router, tree, notfound, busy
+];
 
 export default plugins;

@@ -123,8 +123,8 @@ class CellTools extends Widget {
     if (!panel) {
       return selected;
     }
-    each(panel.notebook.widgets, widget => {
-      if (panel.notebook.isSelectedOrActive(widget)) {
+    each(panel.content.widgets, widget => {
+      if (panel.content.isSelectedOrActive(widget)) {
         selected.push(widget);
       }
     });
@@ -355,7 +355,7 @@ namespace CellTools {
         this._cellModel = null;
         return;
       }
-      let promptNode = activeCell.promptNode.cloneNode(true) as HTMLElement;
+      let promptNode = activeCell.promptNode ? activeCell.promptNode.cloneNode(true) as HTMLElement : null;
       let prompt = new Widget({ node: promptNode });
       let factory = activeCell.contentFactory.editorFactory;
 

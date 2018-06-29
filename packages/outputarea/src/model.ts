@@ -429,7 +429,6 @@ class OutputAreaModel implements IOutputAreaModel {
     let factory = this.contentFactory;
     let item = factory.createOutputModel(options);
     item.changed.connect(this._onGenericChange, this);
-    item.changed.connect(this._onGenericChange, this);
     return item;
   }
 
@@ -443,7 +442,6 @@ class OutputAreaModel implements IOutputAreaModel {
       this._changeGuard = false;
     }
     this._changed.emit(args);
-    this._stateChanged.emit(void 0);
   }
 
   /**

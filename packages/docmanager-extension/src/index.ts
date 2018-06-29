@@ -6,7 +6,7 @@ import {
 } from '@jupyterlab/application';
 
 import {
-  showDialog, showErrorMessage, Spinner, Dialog, ICommandPalette
+  showDialog, showErrorMessage, Dialog, ICommandPalette
 } from '@jupyterlab/apputils';
 
 import {
@@ -35,6 +35,11 @@ import {
 
 
 /**
+ * The name of the factory that creates markdown widgets.
+ */
+const MARKDOWN_FACTORY = 'Markdown Preview';
+
+/**
  * The command IDs used by the document manager plugin.
  */
 namespace CommandIDs {
@@ -46,9 +51,6 @@ namespace CommandIDs {
 
   export
   const closeAllFiles = 'docmanager:close-all-files';
-
-  export
-  const createFrom = 'docmanager:create-from';
 
   export
   const deleteFile = 'docmanager:delete-file';
@@ -64,6 +66,9 @@ namespace CommandIDs {
 
   export
   const openDirect = 'docmanager:open-direct';
+
+  export
+  const reload = 'docmanager:reload';
 
   export
   const rename = 'docmanager:rename';
@@ -85,6 +90,9 @@ namespace CommandIDs {
 
   export
   const showInFileBrowser = 'docmanager:show-in-file-browser';
+
+  export
+  const markdownPreview = 'markdownviewer:open';
 }
 
 const pluginId = '@jupyterlab/docmanager-extension:plugin';
@@ -111,16 +119,6 @@ const plugin: JupyterLabPlugin<IDocumentManager> = {
         };
         if (!widget.isAttached) {
           app.shell.addToMainArea(widget, options || {});
-
-          // Add a loading spinner, and remove it when the widget is ready.
-          if (widget.ready !== undefined) {
-            const spinner = new Spinner();
-            widget.node.appendChild(spinner.node);
-            widget.ready.then(() => {
-              widget.node.removeChild(spinner.node);
-              spinner.dispose();
-            });
-          }
         }
         shell.activateById(widget.id);
 
@@ -134,16 +132,18 @@ const plugin: JupyterLabPlugin<IDocumentManager> = {
     };
     const registry = app.docRegistry;
     const when = app.restored.then(() => void 0);
-    const docManager = new DocumentManager({ registry, manager, opener, when });
+    const docManager = new DocumentManager({ registry, manager, opener, when, setBusy: app.setBusy.bind(app) });
 
     // Register the file operations commands.
     addCommands(app, docManager, palette, opener, settingRegistry);
 
+    // Keep up to date with the settings registry.
     const onSettingsUpdated = (settings: ISettingRegistry.ISettings) => {
       const autosave = settings.get('autosave').composite as boolean | null;
       docManager.autosave = (autosave === true || autosave === false)
                             ? autosave
                             : true;
+      app.commands.notifyCommandChanged(CommandIDs.toggleAutosave);
     };
 
     // Fetch the initial state of the settings.
@@ -305,8 +305,20 @@ function addCommands(app: JupyterLab, docManager: IDocumentManager, palette: ICo
     },
   });
 
+  commands.addCommand(CommandIDs.reload, {
+    label: () => `Reload ${fileType()} from Disk`,
+    caption: 'Reload contents from disk',
+    isEnabled,
+    execute: () => {
+      if (isEnabled()) {
+        let context = docManager.contextForWidget(app.shell.currentWidget);
+        return context.revert();
+      }
+    }
+  });
+
   commands.addCommand(CommandIDs.restoreCheckpoint, {
-    label: () => `Revert ${fileType()} to Saved`,
+    label: () => `Revert ${fileType()} to Checkpoint`,
     caption: 'Revert contents to previous checkpoint',
     isEnabled,
     execute: () => {
@@ -432,7 +444,7 @@ function addCommands(app: JupyterLab, docManager: IDocumentManager, palette: ICo
   });
 
   commands.addCommand(CommandIDs.showInFileBrowser, {
-    label: () => `Show in file browser`,
+    label: () => `Show in File Browser`,
     isEnabled,
     execute: () => {
       let context = docManager.contextForWidget(app.shell.currentWidget);
@@ -445,6 +457,20 @@ function addCommands(app: JupyterLab, docManager: IDocumentManager, palette: ICo
       commands.execute('filebrowser:navigate-main', {path: context.path});
     }
   });
+
+  commands.addCommand(CommandIDs.markdownPreview, {
+    label: 'Markdown Preview',
+    execute: (args) => {
+      let path = args['path'];
+      if (typeof path !== 'string') {
+        return;
+      }
+      return commands.execute('docmanager:open', {
+        path, factory: MARKDOWN_FACTORY
+      });
+    }
+  });
+
 
   app.contextMenu.addItem({
     command: CommandIDs.rename,
@@ -465,6 +491,7 @@ function addCommands(app: JupyterLab, docManager: IDocumentManager, palette: ICo
   [
     CommandIDs.openDirect,
     CommandIDs.save,
+    CommandIDs.reload,
     CommandIDs.restoreCheckpoint,
     CommandIDs.saveAs,
     CommandIDs.clone,
