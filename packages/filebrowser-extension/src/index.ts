@@ -2,113 +2,86 @@
 // Distributed under the terms of the Modified BSD License.
 
 import {
-  ILayoutRestorer, JupyterLab, JupyterLabPlugin
+  ApplicationShell,
+  ILayoutRestorer,
+  JupyterLab,
+  JupyterLabPlugin
 } from '@jupyterlab/application';
 
 import {
-  Clipboard, InstanceTracker, MainAreaWidget, ToolbarButton
+  Clipboard,
+  InstanceTracker,
+  MainAreaWidget,
+  ToolbarButton
 } from '@jupyterlab/apputils';
 
-import {
-  IStateDB, PageConfig, PathExt, URLExt
-} from '@jupyterlab/coreutils';
+import { IStateDB, PageConfig, PathExt, URLExt } from '@jupyterlab/coreutils';
+
+import { IDocumentManager } from '@jupyterlab/docmanager';
+
+import { DocumentRegistry } from '@jupyterlab/docregistry';
 
 import {
-  IDocumentManager
-} from '@jupyterlab/docmanager';
-
-import {
-  DocumentRegistry
-} from '@jupyterlab/docregistry';
-
-import {
-  FileBrowserModel, FileBrowser, IFileBrowserFactory
+  FileBrowserModel,
+  FileBrowser,
+  IFileBrowserFactory
 } from '@jupyterlab/filebrowser';
 
-import {
-  Launcher
-} from '@jupyterlab/launcher';
+import { Launcher } from '@jupyterlab/launcher';
 
-import {
-  Contents
-} from '@jupyterlab/services';
+import { Contents } from '@jupyterlab/services';
 
-import {
-  map, toArray
-} from '@phosphor/algorithm';
+import { map, toArray } from '@phosphor/algorithm';
 
-import {
-  CommandRegistry
-} from '@phosphor/commands';
+import { CommandRegistry } from '@phosphor/commands';
 
-import {
-  Menu
-} from '@phosphor/widgets';
-
+import { Menu } from '@phosphor/widgets';
 
 /**
  * The command IDs used by the file browser plugin.
  */
 namespace CommandIDs {
-  export
-  const copy = 'filebrowser:copy';
+  export const copy = 'filebrowser:copy';
+
+  export const copyDownloadLink = 'filebrowser:copy-download-link';
 
   // For main browser only.
-  export
-  const createLauncher = 'filebrowser:create-main-launcher';
+  export const createLauncher = 'filebrowser:create-main-launcher';
 
-  export
-  const cut = 'filebrowser:cut';
+  export const cut = 'filebrowser:cut';
 
-  export
-  const del = 'filebrowser:delete';
+  export const del = 'filebrowser:delete';
 
-  export
-  const download = 'filebrowser:download';
+  export const download = 'filebrowser:download';
 
-  export
-  const duplicate = 'filebrowser:duplicate';
+  export const duplicate = 'filebrowser:duplicate';
 
   // For main browser only.
-  export
-  const hideBrowser = 'filebrowser:hide-main';
+  export const hideBrowser = 'filebrowser:hide-main';
+
+  export const navigate = 'filebrowser:navigate';
+
+  export const open = 'filebrowser:open';
+
+  export const openBrowserTab = 'filebrowser:open-browser-tab';
+
+  export const paste = 'filebrowser:paste';
+
+  export const rename = 'filebrowser:rename';
 
   // For main browser only.
-  export
-  const navigate = 'filebrowser:navigate-main';
-
-  export
-  const open = 'filebrowser:open';
-
-  export
-  const openBrowserTab = 'filebrowser:open-browser-tab';
-
-  export
-  const paste = 'filebrowser:paste';
-
-  export
-  const rename = 'filebrowser:rename';
+  export const share = 'filebrowser:share-main';
 
   // For main browser only.
-  export
-  const share = 'filebrowser:share-main';
+  export const copyPath = 'filebrowser:copy-path';
+
+  export const showBrowser = 'filebrowser:activate';
+
+  export const shutdown = 'filebrowser:shutdown';
 
   // For main browser only.
-  export
-  const copyPath = 'filebrowser:copy-path';
-
-  // For main browser only.
-  export
-  const showBrowser = 'filebrowser:activate-main';
-
-  export
-  const shutdown = 'filebrowser:shutdown';
-
-  // For main browser only.
-  export
-  const toggleBrowser = 'filebrowser:toggle-main';
+  export const toggleBrowser = 'filebrowser:toggle-main';
 }
-
 
 /**
  * The default file browser extension.
@@ -141,21 +114,29 @@ const namespace = 'filebrowser';
 const plugins: JupyterLabPlugin<any>[] = [factory, browser];
 export default plugins;
 
-
 /**
  * Activate the file browser factory provider.
  */
-function activateFactory(app: JupyterLab, docManager: IDocumentManager, state: IStateDB): IFileBrowserFactory {
+function activateFactory(
+  app: JupyterLab,
+  docManager: IDocumentManager,
+  state: IStateDB
+): IFileBrowserFactory {
   const { commands } = app;
   const tracker = new InstanceTracker<FileBrowser>({ namespace });
-  const createFileBrowser = (id: string, options: IFileBrowserFactory.IOptions = { }) => {
+  const createFileBrowser = (
+    id: string,
+    options: IFileBrowserFactory.IOptions = {}
+  ) => {
     const model = new FileBrowserModel({
       manager: docManager,
       driveName: options.driveName || '',
       state: options.state === null ? null : options.state || state
     });
     const widget = new FileBrowser({
-      id, model, commands: options.commands || commands
+      id,
+      model,
+      commands: options.commands || commands
     });
     const { registry } = docManager;
 
@@ -189,11 +170,14 @@ function activateFactory(app: JupyterLab, docManager: IDocumentManager, state: I
   return { createFileBrowser, defaultBrowser, tracker };
 }
 
-
 /**
  * Activate the default file browser in the sidebar.
  */
-function activateBrowser(app: JupyterLab, factory: IFileBrowserFactory, restorer: ILayoutRestorer): void {
+function activateBrowser(
+  app: JupyterLab,
+  factory: IFileBrowserFactory,
+  restorer: ILayoutRestorer
+): void {
   const browser = factory.defaultBrowser;
   const { commands, shell } = app;
 
@@ -226,16 +210,41 @@ function activateBrowser(app: JupyterLab, factory: IFileBrowserFactory, restorer
     }
 
     // When layout is modified, create a launcher if there are no open items.
-    shell.layoutModified.connect(() => { maybeCreate(); });
+    shell.layoutModified.connect(() => {
+      maybeCreate();
+    });
     maybeCreate();
   });
 }
 
-
 /**
  * Add the main file browser commands to the application's command registry.
  */
-function addCommands(app: JupyterLab, tracker: InstanceTracker<FileBrowser>, browser: FileBrowser): void {
+function addCommands(
+  app: JupyterLab,
+  tracker: InstanceTracker<FileBrowser>,
+  browser: FileBrowser
+): void {
+  const getBrowserForPath = (path: string): FileBrowser => {
+    const driveName = app.serviceManager.contents.driveName(path);
+
+    if (driveName) {
+      let browserForPath = tracker.find(fb => fb.model.driveName === driveName);
+
+      if (!browserForPath) {
+        // warn that no filebrowser could be found for this driveName
+        console.warn(
+          `${CommandIDs.navigate} failed to find filebrowser for path: ${path}`
+        );
+        return;
+      }
+
+      return browserForPath;
+    }
+
+    // if driveName is empty, assume the main filebrowser
+    return browser;
+  };
   const { commands } = app;
 
   commands.addCommand(CommandIDs.del, {
@@ -310,9 +319,10 @@ function addCommands(app: JupyterLab, tracker: InstanceTracker<FileBrowser>, bro
 
   commands.addCommand(CommandIDs.navigate, {
     execute: args => {
-      const path = args.path as string || '';
+      const path = (args.path as string) || '';
+      const browserForPath = getBrowserForPath(path);
       const services = app.serviceManager;
-      const open = 'docmanager:open';
+      const localPath = services.contents.localPath(path);
       const failure = (reason: any) => {
         console.warn(`${CommandIDs.navigate} failed to open: ${path}`, reason);
       };
@@ -320,16 +330,18 @@ function addCommands(app: JupyterLab, tracker: InstanceTracker<FileBrowser>, bro
       return services.ready
         .then(() => services.contents.get(path))
         .then(value => {
-          const { model } = browser;
+          const { model } = browserForPath;
           const { restored } = model;
 
           if (value.type === 'directory') {
-            return restored.then(() => model.cd(`/${path}`));
+            return restored.then(() => model.cd(`/${localPath}`));
           }
 
-          return restored.then(() => model.cd(`/${PathExt.dirname(path)}`))
-            .then(() => commands.execute(open, { path }));
-        }).catch(failure);
+          return restored
+            .then(() => model.cd(`/${PathExt.dirname(localPath)}`))
+            .then(() => commands.execute('docmanager:open', { path: path }));
+        })
+        .catch(failure);
     }
   });
 
@@ -341,13 +353,17 @@ function addCommands(app: JupyterLab, tracker: InstanceTracker<FileBrowser>, bro
         return;
       }
 
-      return Promise.all(toArray(map(widget.selectedItems(), item => {
-        if (item.type === 'directory') {
-          return widget.model.cd(item.path);
-        }
+      return Promise.all(
+        toArray(
+          map(widget.selectedItems(), item => {
+            if (item.type === 'directory') {
+              return widget.model.cd(item.name);
+            }
 
-        return commands.execute('docmanager:open', { path: item.path });
-      })));
+            return commands.execute('docmanager:open', { path: item.path });
+          })
+        )
+      );
     },
     iconClass: 'jp-MaterialIcon jp-OpenFolderIcon',
     label: 'Open',
@@ -362,12 +378,36 @@ function addCommands(app: JupyterLab, tracker: InstanceTracker<FileBrowser>, bro
         return;
       }
 
-      return Promise.all(toArray(map(widget.selectedItems(), item => {
-        return commands.execute('docmanager:open-browser-tab', { path: item.path });
-      })));
+      return Promise.all(
+        toArray(
+          map(widget.selectedItems(), item => {
+            return commands.execute('docmanager:open-browser-tab', {
+              path: item.path
+            });
+          })
+        )
+      );
     },
     iconClass: 'jp-MaterialIcon jp-AddIcon',
     label: 'Open in New Browser Tab',
+    mnemonic: 0
+  });
+
+  commands.addCommand(CommandIDs.copyDownloadLink, {
+    execute: () => {
+      const widget = tracker.currentWidget;
+      if (!widget) {
+        return;
+      }
+
+      return browser.model.manager.services.contents
+        .getDownloadUrl(browser.selectedItems().next().path)
+        .then(url => {
+          Clipboard.copyToSystem(url);
+        });
+    },
+    iconClass: 'jp-MaterialIcon jp-CopyIcon',
+    label: 'Copy Download Link',
     mnemonic: 0
   });
 
@@ -385,7 +425,7 @@ function addCommands(app: JupyterLab, tracker: InstanceTracker<FileBrowser>, bro
   });
 
   commands.addCommand(CommandIDs.rename, {
-    execute: (args) => {
+    execute: args => {
       const widget = tracker.currentWidget;
 
       if (widget) {
@@ -424,7 +464,33 @@ function addCommands(app: JupyterLab, tracker: InstanceTracker<FileBrowser>, bro
   });
 
   commands.addCommand(CommandIDs.showBrowser, {
-    execute: () => { app.shell.activateById(browser.id); }
+    execute: args => {
+      const path = (args.path as string) || '';
+      const browserForPath = getBrowserForPath(path);
+
+      // Check for browser not found
+      if (!browserForPath) {
+        return;
+      }
+      // Shortcut if we are using the main file browser
+      if (browser === browserForPath) {
+        app.shell.activateById(browser.id);
+        return;
+      } else {
+        const areas: ApplicationShell.Area[] = ['left', 'right'];
+        for (let area of areas) {
+          const it = app.shell.widgets(area);
+          let widget = it.next();
+          while (widget) {
+            if (widget.contains(browserForPath)) {
+              app.shell.activateById(widget.id);
+              return;
+            }
+            widget = it.next();
+          }
+        }
+      }
+    }
   });
 
   commands.addCommand(CommandIDs.shutdown, {
@@ -455,7 +521,6 @@ function addCommands(app: JupyterLab, tracker: InstanceTracker<FileBrowser>, bro
   });
 }
 
-
 /**
  * Create a context menu for the file browser listing.
  *
@@ -463,8 +528,11 @@ function addCommands(app: JupyterLab, tracker: InstanceTracker<FileBrowser>, bro
  * This function generates temporary commands with an incremented name. These
  * commands are disposed when the menu itself is disposed.
  */
-function createContextMenu(model: Contents.IModel | undefined, commands: CommandRegistry, registry: DocumentRegistry): Menu {
-
+function createContextMenu(
+  model: Contents.IModel | undefined,
+  commands: CommandRegistry,
+  registry: DocumentRegistry
+): Menu {
   const menu = new Menu({ commands });
 
   // If the user did not click on any file, we still want to show
@@ -480,7 +548,7 @@ function createContextMenu(model: Contents.IModel | undefined, commands: Command
   if (model.type !== 'directory') {
     const factories = registry.preferredWidgetFactories(path).map(f => f.name);
     if (path && factories.length > 1) {
-      const command =  'docmanager:open';
+      const command = 'docmanager:open';
       const openWith = new Menu({ commands });
       openWith.title.label = 'Open With';
       factories.forEach(factory => {
@@ -509,22 +577,26 @@ function createContextMenu(model: Contents.IModel | undefined, commands: Command
 
   menu.addItem({ command: CommandIDs.share });
   menu.addItem({ command: CommandIDs.copyPath });
+  menu.addItem({ command: CommandIDs.copyDownloadLink });
 
   return menu;
 }
 
-
 /**
  * Create a launcher for a given filebrowser widget.
  */
-function createLauncher(commands: CommandRegistry, browser: FileBrowser): Promise<MainAreaWidget<Launcher>> {
+function createLauncher(
+  commands: CommandRegistry,
+  browser: FileBrowser
+): Promise<MainAreaWidget<Launcher>> {
   const { model } = browser;
 
-  return commands.execute('launcher:create', { cwd: model.path })
-  .then((launcher: MainAreaWidget<Launcher>) => {
-    model.pathChanged.connect(() => {
-      launcher.content.cwd = model.path;
-    }, launcher);
-    return launcher;
-  });
+  return commands
+    .execute('launcher:create', { cwd: model.path })
+    .then((launcher: MainAreaWidget<Launcher>) => {
+      model.pathChanged.connect(() => {
+        launcher.content.cwd = model.path;
+      }, launcher);
+      return launcher;
+    });
 }

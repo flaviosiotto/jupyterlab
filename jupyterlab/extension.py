@@ -36,6 +36,9 @@ def load_jupyter_server_extension(nbapp):
     from tornado.ioloop import IOLoop
     from markupsafe import Markup
     from .build_handler import build_path, Builder, BuildHandler
+    from .extension_manager_handler import (
+        extensions_handler_path, ExtensionManager, ExtensionHandler
+    )
     from .commands import (
         get_app_dir, get_user_settings_dir, watch, ensure_dev, watch_dev,
         pjoin, DEV_DIR, HERE, get_app_info, ensure_core, get_workspaces_dir
@@ -53,10 +56,10 @@ def load_jupyter_server_extension(nbapp):
     )
 
     # Print messages.
-    logger.info('JupyterLab beta preview extension loaded from %s' % HERE)
+    logger.info('JupyterLab extension loaded from %s' % HERE)
     logger.info('JupyterLab application directory is %s' % app_dir)
 
-    config.app_name = 'JupyterLab Beta'
+    config.app_name = 'JupyterLab'
     config.app_namespace = 'jupyterlab'
     config.page_url = '/lab'
     config.cache_files = True
@@ -89,7 +92,7 @@ def load_jupyter_server_extension(nbapp):
     page_config['buildCheck'] = not core_mode and not dev_mode
     page_config['token'] = nbapp.token
     page_config['devMode'] = dev_mode
-    # Export the version info tuple to a JSON array. This get's printed
+    # Export the version info tuple to a JSON array. This gets printed
     # inside double quote marks, so we render it to a JSON string of the
     # JSON data (so that we can call JSON.parse on the frontend on it).
     # We also have to wrap it in `Markup` so that it isn't escaped
@@ -148,8 +151,15 @@ def load_jupyter_server_extension(nbapp):
     build_url = ujoin(base_url, build_path)
     builder = Builder(logger, core_mode, app_dir)
     build_handler = (build_url, BuildHandler, {'builder': builder})
+    handlers = [build_handler]
+
+    if not core_mode:
+        ext_url = ujoin(base_url, extensions_handler_path)
+        ext_manager = ExtensionManager(logger, app_dir)
+        ext_handler = (ext_url, ExtensionHandler, {'manager': ext_manager})
+        handlers.append(ext_handler)
 
     # Must add before the launcher handlers to avoid shadowing.
-    web_app.add_handlers('.*$', [build_handler])
+    web_app.add_handlers('.*$', handlers)
 
     add_handlers(web_app, config)

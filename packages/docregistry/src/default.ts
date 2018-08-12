@@ -1,57 +1,36 @@
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
-import {
-  Mode
-} from '@jupyterlab/codemirror';
+import { Mode } from '@jupyterlab/codemirror';
 
-import {
-  Contents
-} from '@jupyterlab/services';
+import { Contents } from '@jupyterlab/services';
 
-import {
-  JSONValue
-} from '@phosphor/coreutils';
+import { JSONValue } from '@phosphor/coreutils';
 
-import {
-  ISignal, Signal
-} from '@phosphor/signaling';
+import { ISignal, Signal } from '@phosphor/signaling';
 
-import {
-  Widget
-} from '@phosphor/widgets';
+import { Widget } from '@phosphor/widgets';
 
-import {
-  MainAreaWidget
-} from '@jupyterlab/apputils';
+import { MainAreaWidget } from '@jupyterlab/apputils';
 
-import {
-  CodeEditor
-} from '@jupyterlab/codeeditor';
+import { CodeEditor } from '@jupyterlab/codeeditor';
 
-import {
-  IChangedArgs, PathExt
-} from '@jupyterlab/coreutils';
+import { IChangedArgs, PathExt } from '@jupyterlab/coreutils';
 
-import {
-  IModelDB
-} from '@jupyterlab/observables';
+import { IModelDB } from '@jupyterlab/observables';
 
-import {
-  DocumentRegistry, IDocumentWidget
-} from './index';
-
+import { DocumentRegistry, IDocumentWidget } from './index';
 
 /**
  * The default implementation of a document model.
  */
-export
-class DocumentModel extends CodeEditor.Model implements DocumentRegistry.ICodeModel  {
+export class DocumentModel extends CodeEditor.Model
+  implements DocumentRegistry.ICodeModel {
   /**
    * Construct a new document model.
    */
   constructor(languagePreference?: string, modelDB?: IModelDB) {
-    super({modelDB});
+    super({ modelDB });
     this._defaultLang = languagePreference || '';
     this.value.changed.connect(this.triggerContentChange, this);
   }
@@ -183,12 +162,10 @@ class DocumentModel extends CodeEditor.Model implements DocumentRegistry.ICodeMo
   private _stateChanged = new Signal<this, IChangedArgs<any>>(this);
 }
 
-
 /**
  * An implementation of a model factory for text files.
  */
-export
-class TextModelFactory implements DocumentRegistry.CodeModelFactory {
+export class TextModelFactory implements DocumentRegistry.CodeModelFactory {
   /**
    * The name of the model type.
    *
@@ -239,7 +216,10 @@ class TextModelFactory implements DocumentRegistry.CodeModelFactory {
    *
    * @returns A new document model.
    */
-  createNew(languagePreference?: string, modelDB?: IModelDB): DocumentRegistry.ICodeModel {
+  createNew(
+    languagePreference?: string,
+    modelDB?: IModelDB
+  ): DocumentRegistry.ICodeModel {
     return new DocumentModel(languagePreference, modelDB);
   }
 
@@ -254,12 +234,10 @@ class TextModelFactory implements DocumentRegistry.CodeModelFactory {
   private _isDisposed = false;
 }
 
-
 /**
  * An implementation of a model factory for base64 files.
  */
-export
-class Base64ModelFactory extends TextModelFactory {
+export class Base64ModelFactory extends TextModelFactory {
   /**
    * The name of the model type.
    *
@@ -290,12 +268,13 @@ class Base64ModelFactory extends TextModelFactory {
   }
 }
 
-
 /**
  * The default implementation of a widget factory.
  */
-export
-abstract class ABCWidgetFactory<T extends IDocumentWidget, U extends DocumentRegistry.IModel = DocumentRegistry.IModel> implements DocumentRegistry.IWidgetFactory<T, U> {
+export abstract class ABCWidgetFactory<
+  T extends IDocumentWidget,
+  U extends DocumentRegistry.IModel = DocumentRegistry.IModel
+> implements DocumentRegistry.IWidgetFactory<T, U> {
   /**
    * Construct a new `ABCWidgetFactory`.
    */
@@ -303,6 +282,7 @@ abstract class ABCWidgetFactory<T extends IDocumentWidget, U extends DocumentReg
     this._name = options.name;
     this._readOnly = options.readOnly === undefined ? false : options.readOnly;
     this._defaultFor = options.defaultFor ? options.defaultFor.slice() : [];
+    this._defaultRendered = (options.defaultRendered || []).slice();
     this._fileTypes = options.fileTypes.slice();
     this._modelName = options.modelName || 'text';
     this._preferKernel = !!options.preferKernel;
@@ -366,6 +346,14 @@ abstract class ABCWidgetFactory<T extends IDocumentWidget, U extends DocumentReg
   }
 
   /**
+   * The file types for which the factory should be the default for
+   * rendering a document model, if different from editing.
+   */
+  get defaultRendered(): string[] {
+    return this._defaultRendered.slice();
+  }
+
+  /**
    * Whether the widgets prefer having a kernel started.
    */
   get preferKernel(): boolean {
@@ -404,7 +392,10 @@ abstract class ABCWidgetFactory<T extends IDocumentWidget, U extends DocumentReg
   private _modelName: string;
   private _fileTypes: string[];
   private _defaultFor: string[];
-  private _widgetCreated = new Signal<DocumentRegistry.IWidgetFactory<T, U>, T>(this);
+  private _defaultRendered: string[];
+  private _widgetCreated = new Signal<DocumentRegistry.IWidgetFactory<T, U>, T>(
+    this
+  );
 }
 
 /**
@@ -415,10 +406,11 @@ const DIRTY_CLASS = 'jp-mod-dirty';
 /**
  * A document widget implementation.
  */
-export
-class DocumentWidget<T extends Widget = Widget, U extends DocumentRegistry.IModel = DocumentRegistry.IModel> extends MainAreaWidget<T> implements IDocumentWidget<T, U> {
+export class DocumentWidget<
+  T extends Widget = Widget,
+  U extends DocumentRegistry.IModel = DocumentRegistry.IModel
+> extends MainAreaWidget<T> implements IDocumentWidget<T, U> {
   constructor(options: DocumentWidget.IOptions<T, U>) {
-
     // Include the context ready promise in the widget reveal promise
     options.reveal = Promise.all([options.reveal, options.context.ready]);
     super(options);
@@ -431,20 +423,28 @@ class DocumentWidget<T extends Widget = Widget, U extends DocumentRegistry.IMode
 
     // Listen for changes in the dirty state.
     this.context.model.stateChanged.connect(this._onModelStateChanged, this);
-    this.context.ready.then(() => { this._handleDirtyState(); });
+    this.context.ready.then(() => {
+      this._handleDirtyState();
+    });
   }
 
   /**
    * Handle a path change.
    */
-  private _onPathChanged(sender: DocumentRegistry.IContext<U>, path: string): void {
+  private _onPathChanged(
+    sender: DocumentRegistry.IContext<U>,
+    path: string
+  ): void {
     this.title.label = PathExt.basename(sender.localPath);
   }
 
   /**
    * Handle a change to the context model state.
    */
-  private _onModelStateChanged(sender: DocumentRegistry.IModel, args: IChangedArgs<any>): void {
+  private _onModelStateChanged(
+    sender: DocumentRegistry.IModel,
+    args: IChangedArgs<any>
+  ): void {
     if (args.name === 'dirty') {
       this._handleDirtyState();
     }
@@ -464,15 +464,18 @@ class DocumentWidget<T extends Widget = Widget, U extends DocumentRegistry.IMode
   readonly context: DocumentRegistry.IContext<U>;
 }
 
-export
-namespace DocumentWidget {
-  export
-  interface IOptions<T extends Widget = Widget, U extends DocumentRegistry.IModel = DocumentRegistry.IModel> extends MainAreaWidget.IOptions<T> {
-      context: DocumentRegistry.IContext<U>;
+export namespace DocumentWidget {
+  export interface IOptions<
+    T extends Widget = Widget,
+    U extends DocumentRegistry.IModel = DocumentRegistry.IModel
+  > extends MainAreaWidget.IOptions<T> {
+    context: DocumentRegistry.IContext<U>;
   }
 
-  export
-  interface IOptionsOptionalContent<T extends Widget = Widget, U extends DocumentRegistry.IModel = DocumentRegistry.IModel> extends MainAreaWidget.IOptionsOptionalContent<T> {
-      context: DocumentRegistry.IContext<U>;
+  export interface IOptionsOptionalContent<
+    T extends Widget = Widget,
+    U extends DocumentRegistry.IModel = DocumentRegistry.IModel
+  > extends MainAreaWidget.IOptionsOptionalContent<T> {
+    context: DocumentRegistry.IContext<U>;
   }
 }

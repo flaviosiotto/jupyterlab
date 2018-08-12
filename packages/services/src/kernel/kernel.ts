@@ -1,40 +1,24 @@
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
-import {
-  IIterator
-} from '@phosphor/algorithm';
+import { IIterator } from '@phosphor/algorithm';
 
-import {
-  JSONObject, JSONValue
-} from '@phosphor/coreutils';
+import { JSONObject, JSONValue } from '@phosphor/coreutils';
 
-import {
-  IDisposable
-} from '@phosphor/disposable';
+import { IDisposable } from '@phosphor/disposable';
 
-import {
-  ISignal
-} from '@phosphor/signaling';
+import { ISignal } from '@phosphor/signaling';
 
-import {
-  ServerConnection
-} from '..';
+import { ServerConnection } from '..';
 
-import {
-  DefaultKernel
-} from './default';
+import { DefaultKernel } from './default';
 
-import {
-  KernelMessage
-} from './messages';
-
+import { KernelMessage } from './messages';
 
 /**
  * A namespace for kernel types, interfaces, and type checker functions.
  */
-export
-namespace Kernel {
+export namespace Kernel {
   /**
    * Interface of a Kernel connection that is managed by a session.
    *
@@ -45,8 +29,7 @@ namespace Kernel {
    * temporarily loses connection.  Restarting creates a new Kernel process on
    * the server, but preserves the Kernel id.
    */
-  export
-  interface IKernelConnection extends IDisposable {
+  export interface IKernelConnection extends IDisposable {
     /**
      * The id of the server-side kernel.
      */
@@ -143,7 +126,11 @@ namespace Kernel {
      *
      * If the kernel status is `'dead'`, this will throw an error.
      */
-    sendShellMessage(msg: KernelMessage.IShellMessage, expectReply?: boolean, disposeOnDone?: boolean): Kernel.IFuture;
+    sendShellMessage(
+      msg: KernelMessage.IShellMessage,
+      expectReply?: boolean,
+      disposeOnDone?: boolean
+    ): Kernel.IFuture;
 
     /**
      * Reconnect to a disconnected kernel.
@@ -218,7 +205,9 @@ namespace Kernel {
      * Fulfills with the `complete_reply` content when the shell reply is
      * received and validated.
      */
-    requestComplete(content: KernelMessage.ICompleteRequest): Promise<KernelMessage.ICompleteReplyMsg>;
+    requestComplete(
+      content: KernelMessage.ICompleteRequest
+    ): Promise<KernelMessage.ICompleteReplyMsg>;
 
     /**
      * Send an `inspect_request` message.
@@ -233,7 +222,9 @@ namespace Kernel {
      * Fulfills with the `inspect_reply` content when the shell reply is
      * received and validated.
      */
-    requestInspect(content: KernelMessage.IInspectRequest): Promise<KernelMessage.IInspectReplyMsg>;
+    requestInspect(
+      content: KernelMessage.IInspectRequest
+    ): Promise<KernelMessage.IInspectReplyMsg>;
 
     /**
      * Send a `history_request` message.
@@ -248,7 +239,9 @@ namespace Kernel {
      * Fulfills with the `history_reply` content when the shell reply is
      * received and validated.
      */
-    requestHistory(content: KernelMessage.IHistoryRequest): Promise<KernelMessage.IHistoryReplyMsg>;
+    requestHistory(
+      content: KernelMessage.IHistoryRequest
+    ): Promise<KernelMessage.IHistoryReplyMsg>;
 
     /**
      * Send an `execute_request` message.
@@ -271,7 +264,11 @@ namespace Kernel {
      *
      * **See also:** [[IExecuteReply]]
      */
-    requestExecute(content: KernelMessage.IExecuteRequest, disposeOnDone?: boolean): Kernel.IFuture;
+    requestExecute(
+      content: KernelMessage.IExecuteRequest,
+      disposeOnDone?: boolean,
+      metadata?: JSONObject
+    ): Kernel.IFuture;
 
     /**
      * Send an `is_complete_request` message.
@@ -286,7 +283,9 @@ namespace Kernel {
      * Fulfills with the `is_complete_response` content when the shell reply is
      * received and validated.
      */
-    requestIsComplete(content: KernelMessage.IIsCompleteRequest): Promise<KernelMessage.IIsCompleteReplyMsg>;
+    requestIsComplete(
+      content: KernelMessage.IIsCompleteRequest
+    ): Promise<KernelMessage.IIsCompleteReplyMsg>;
 
     /**
      * Send a `comm_info_request` message.
@@ -301,7 +300,9 @@ namespace Kernel {
      * Fulfills with the `comm_info_reply` content when the shell reply is
      * received and validated.
      */
-    requestCommInfo(content: KernelMessage.ICommInfoRequest): Promise<KernelMessage.ICommInfoReplyMsg>;
+    requestCommInfo(
+      content: KernelMessage.ICommInfoRequest
+    ): Promise<KernelMessage.ICommInfoReplyMsg>;
 
     /**
      * Send an `input_reply` message.
@@ -333,14 +334,20 @@ namespace Kernel {
      *
      * #### Notes
      * Only one comm target can be registered to a target name at a time, an
-     * existing callback for the same target name will be overidden.  A registered
+     * existing callback for the same target name will be overridden.  A registered
      * comm target handler will take precedence over a comm which specifies a
      * `target_module`.
      *
      * If the callback returns a promise, kernel message processing will pause
      * until the returned promise is fulfilled.
      */
-    registerCommTarget(targetName: string, callback: (comm: Kernel.IComm, msg: KernelMessage.ICommOpenMsg) => void | PromiseLike<void>): void;
+    registerCommTarget(
+      targetName: string,
+      callback: (
+        comm: Kernel.IComm,
+        msg: KernelMessage.ICommOpenMsg
+      ) => void | PromiseLike<void>
+    ): void;
 
     /**
      * Remove a comm target handler.
@@ -352,7 +359,13 @@ namespace Kernel {
      * #### Notes
      * The comm target is only removed if it matches the callback argument.
      */
-    removeCommTarget(targetName: string, callback: (comm: Kernel.IComm, msg: KernelMessage.ICommOpenMsg) => void | PromiseLike<void>): void;
+    removeCommTarget(
+      targetName: string,
+      callback: (
+        comm: Kernel.IComm,
+        msg: KernelMessage.ICommOpenMsg
+      ) => void | PromiseLike<void>
+    ): void;
 
     /**
      * Register an IOPub message hook.
@@ -374,7 +387,10 @@ namespace Kernel {
      *
      * See also [[IFuture.registerMessageHook]].
      */
-    registerMessageHook(msgId: string, hook: (msg: KernelMessage.IIOPubMessage) => boolean | PromiseLike<boolean>): void;
+    registerMessageHook(
+      msgId: string,
+      hook: (msg: KernelMessage.IIOPubMessage) => boolean | PromiseLike<boolean>
+    ): void;
 
     /**
      * Remove an IOPub message hook.
@@ -384,14 +400,16 @@ namespace Kernel {
      * @param hook - The callback invoked for the message.
      *
      */
-    removeMessageHook(msgId: string, hook: (msg: KernelMessage.IIOPubMessage) => boolean | PromiseLike<boolean>): void;
+    removeMessageHook(
+      msgId: string,
+      hook: (msg: KernelMessage.IIOPubMessage) => boolean | PromiseLike<boolean>
+    ): void;
   }
 
   /**
    * The full interface of a kernel.
    */
-  export
-  interface IKernel extends IKernelConnection {
+  export interface IKernel extends IKernelConnection {
     /**
      * A signal emitted when the kernel is shut down.
      */
@@ -460,8 +478,10 @@ namespace Kernel {
    * promise is fulfilled when the kernel is found, otherwise the promise is
    * rejected.
    */
-  export
-  function findById(id: string, settings?: ServerConnection.ISettings): Promise<IModel> {
+  export function findById(
+    id: string,
+    settings?: ServerConnection.ISettings
+  ): Promise<IModel> {
     return DefaultKernel.findById(id, settings);
   }
 
@@ -475,8 +495,9 @@ namespace Kernel {
    * #### Notes
    * Uses the [Jupyter Notebook API](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/jupyter/notebook/master/notebook/services/api/api.yaml#!/kernelspecs).
    */
-  export
-  function getSpecs(settings?: ServerConnection.ISettings): Promise<Kernel.ISpecModels> {
+  export function getSpecs(
+    settings?: ServerConnection.ISettings
+  ): Promise<Kernel.ISpecModels> {
     return DefaultKernel.getSpecs(settings);
   }
 
@@ -492,8 +513,9 @@ namespace Kernel {
    *
    * The promise is fulfilled on a valid response and rejected otherwise.
    */
-  export
-  function listRunning(settings?: ServerConnection.ISettings): Promise<Kernel.IModel[]> {
+  export function listRunning(
+    settings?: ServerConnection.ISettings
+  ): Promise<Kernel.IModel[]> {
     return DefaultKernel.listRunning(settings);
   }
 
@@ -513,8 +535,7 @@ namespace Kernel {
    * Wraps the result in a Kernel object. The promise is fulfilled
    * when the kernel is started by the server, otherwise the promise is rejected.
    */
-  export
-  function startNew(options: Kernel.IOptions = {}): Promise<IKernel> {
+  export function startNew(options: Kernel.IOptions = {}): Promise<IKernel> {
     return DefaultKernel.startNew(options);
   }
 
@@ -531,8 +552,10 @@ namespace Kernel {
    * If the kernel was already started via `startNewKernel`, the existing
    * Kernel object info is used to create another instance.
    */
-  export
-  function connectTo(model: Kernel.IModel, settings?: ServerConnection.ISettings): IKernel {
+  export function connectTo(
+    model: Kernel.IModel,
+    settings?: ServerConnection.ISettings
+  ): IKernel {
     return DefaultKernel.connectTo(model, settings);
   }
 
@@ -545,8 +568,10 @@ namespace Kernel {
    *
    * @returns A promise that resolves when the kernel is shut down.
    */
-  export
-  function shutdown(id: string, settings?: ServerConnection.ISettings): Promise<void> {
+  export function shutdown(
+    id: string,
+    settings?: ServerConnection.ISettings
+  ): Promise<void> {
     return DefaultKernel.shutdown(id, settings);
   }
 
@@ -555,16 +580,16 @@ namespace Kernel {
    *
    * @returns A promise that resolves when all of the kernels are shut down.
    */
-  export
-  function shutdownAll(settings?: ServerConnection.ISettings): Promise<void> {
+  export function shutdownAll(
+    settings?: ServerConnection.ISettings
+  ): Promise<void> {
     return DefaultKernel.shutdownAll(settings);
   }
 
   /**
    * The options object used to initialize a kernel.
    */
-  export
-  interface IOptions {
+  export interface IOptions {
     /**
      * The kernel type (e.g. python3).
      */
@@ -593,8 +618,7 @@ namespace Kernel {
    * The manager is responsible for maintaining the state of running
    * kernels and the initial fetch of kernel specs.
    */
-  export
-  interface IManager extends IDisposable {
+  export interface IManager extends IDisposable {
     /**
      * A signal emitted when the kernel specs change.
      */
@@ -710,8 +734,7 @@ namespace Kernel {
    * When a message is sent to a kernel, a Future is created to handle any
    * responses that may come from the kernel.
    */
-  export
-  interface IFuture extends IDisposable {
+  export interface IFuture extends IDisposable {
     /**
      * The original outgoing message.
      */
@@ -777,7 +800,9 @@ namespace Kernel {
      * message. If a hook is removed during the hook processing, it will be
      * deactivated immediately.
      */
-    registerMessageHook(hook: (msg: KernelMessage.IIOPubMessage) => boolean | PromiseLike<boolean>): void;
+    registerMessageHook(
+      hook: (msg: KernelMessage.IIOPubMessage) => boolean | PromiseLike<boolean>
+    ): void;
 
     /**
      * Remove a hook for IOPub messages.
@@ -787,7 +812,9 @@ namespace Kernel {
      * #### Notes
      * If a hook is removed during the hook processing, it will be deactivated immediately.
      */
-    removeMessageHook(hook: (msg: KernelMessage.IIOPubMessage) => boolean | PromiseLike<boolean>): void;
+    removeMessageHook(
+      hook: (msg: KernelMessage.IIOPubMessage) => boolean | PromiseLike<boolean>
+    ): void;
 
     /**
      * Send an `input_reply` message.
@@ -798,8 +825,7 @@ namespace Kernel {
   /**
    * A client side Comm interface.
    */
-  export
-  interface IComm extends IDisposable {
+  export interface IComm extends IDisposable {
     /**
      * The unique id for the comm channel.
      */
@@ -842,7 +868,11 @@ namespace Kernel {
      * #### Notes
      * This sends a `comm_open` message to the server.
      */
-    open(data?: JSONValue, metadata?: JSONObject, buffers?: (ArrayBuffer | ArrayBufferView)[]): IFuture;
+    open(
+      data?: JSONValue,
+      metadata?: JSONObject,
+      buffers?: (ArrayBuffer | ArrayBufferView)[]
+    ): IFuture;
 
     /**
      * Send a `comm_msg` message to the kernel.
@@ -860,7 +890,12 @@ namespace Kernel {
      * #### Notes
      * This is a no-op if the comm has been closed.
      */
-    send(data: JSONValue, metadata?: JSONObject, buffers?: (ArrayBuffer | ArrayBufferView)[], disposeOnDone?: boolean): IFuture;
+    send(
+      data: JSONValue,
+      metadata?: JSONObject,
+      buffers?: (ArrayBuffer | ArrayBufferView)[],
+      disposeOnDone?: boolean
+    ): IFuture;
 
     /**
      * Close the comm.
@@ -877,14 +912,25 @@ namespace Kernel {
      *
      * This is a no-op if the comm is already closed.
      */
-    close(data?: JSONValue, metadata?: JSONObject, buffers?: (ArrayBuffer | ArrayBufferView)[]): IFuture;
+    close(
+      data?: JSONValue,
+      metadata?: JSONObject,
+      buffers?: (ArrayBuffer | ArrayBufferView)[]
+    ): IFuture;
   }
 
   /**
    * The valid Kernel status states.
    */
-  export
-  type Status = 'unknown' | 'starting' | 'reconnecting' | 'idle' | 'busy' | 'restarting' | 'dead' | 'connected';
+  export type Status =
+    | 'unknown'
+    | 'starting'
+    | 'reconnecting'
+    | 'idle'
+    | 'busy'
+    | 'restarting'
+    | 'dead'
+    | 'connected';
 
   /**
    * The kernel model provided by the server.
@@ -892,8 +938,7 @@ namespace Kernel {
    * #### Notes
    * See the [Jupyter Notebook API](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/jupyter/notebook/master/notebook/services/api/api.yaml#!/kernels).
    */
-  export
-  interface IModel extends JSONObject {
+  export interface IModel extends JSONObject {
     /**
      * Unique identifier of the kernel server session.
      */
@@ -911,8 +956,7 @@ namespace Kernel {
    * #### Notes
    * See [Kernel specs](https://jupyter-client.readthedocs.io/en/latest/kernels.html#kernelspecs).
    */
-  export
-  interface ISpecModel extends JSONObject {
+  export interface ISpecModel extends JSONObject {
     /**
      * The name of the kernel spec.
      */
@@ -941,7 +985,7 @@ namespace Kernel {
     /**
      * A mapping of resource file name to download path.
      */
-    readonly resources: { [key: string]: string; };
+    readonly resources: { [key: string]: string };
   }
 
   /**
@@ -950,8 +994,7 @@ namespace Kernel {
    * #### Notes
    * See the [Jupyter Notebook API](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/jupyter/notebook/master/notebook/services/api/api.yaml#!/kernelspecs).
    */
-  export
-  interface ISpecModels extends JSONObject {
+  export interface ISpecModels extends JSONObject {
     /**
      * The name of the default kernel spec.
      */
@@ -966,8 +1009,7 @@ namespace Kernel {
   /**
    * Arguments interface for the anyMessage signal.
    */
-  export
-  interface IAnyMessageArgs {
+  export interface IAnyMessageArgs {
     /**
      * The message that is being signaled.
      */

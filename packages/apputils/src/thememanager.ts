@@ -1,50 +1,35 @@
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
-import {
-  ISettingRegistry, URLExt
-} from '@jupyterlab/coreutils';
+import { IChangedArgs, ISettingRegistry, URLExt } from '@jupyterlab/coreutils';
 
-import {
-  each
-} from '@phosphor/algorithm';
+import { each } from '@phosphor/algorithm';
 
-import {
-  Token
-} from '@phosphor/coreutils';
+import { Token } from '@phosphor/coreutils';
 
-import {
-  DisposableDelegate, IDisposable
-} from '@phosphor/disposable';
+import { DisposableDelegate, IDisposable } from '@phosphor/disposable';
 
-import {
-  Widget
-} from '@phosphor/widgets';
+import { Widget } from '@phosphor/widgets';
 
-import {
-  Dialog, showDialog
-} from './dialog';
+import { ISignal, Signal } from '@phosphor/signaling';
 
-import {
-  ISplashScreen
-} from './splash';
+import { Dialog, showDialog } from './dialog';
 
+import { ISplashScreen } from './splash';
 
 /* tslint:disable */
 /**
  * The theme manager token.
  */
-export
-const IThemeManager = new Token<IThemeManager>('@jupyterlab/apputils:IThemeManager');
+export const IThemeManager = new Token<IThemeManager>(
+  '@jupyterlab/apputils:IThemeManager'
+);
 /* tslint:enable */
-
 
 /**
  * An interface for a theme manager.
  */
-export
-interface IThemeManager extends ThemeManager {}
-
+export interface IThemeManager extends ThemeManager {}
 
 /**
  * The number of milliseconds between theme loading attempts.
@@ -56,12 +41,10 @@ const REQUEST_INTERVAL = 75;
  */
 const REQUEST_THRESHOLD = 20;
 
-
 /**
  * A class that provides theme management.
  */
-export
-class ThemeManager {
+export class ThemeManager {
   /**
    * Construct a new theme manager.
    */
@@ -95,6 +78,13 @@ class ThemeManager {
   }
 
   /**
+   * A signal fired when the application theme changes.
+   */
+  get themeChanged(): ISignal<this, IChangedArgs<string>> {
+    return this._themeChanged;
+  }
+
+  /**
    * Load a theme CSS file by path.
    *
    * @param path - The path of the file to load.
@@ -110,7 +100,9 @@ class ThemeManager {
       link.setAttribute('rel', 'stylesheet');
       link.setAttribute('type', 'text/css');
       link.setAttribute('href', href);
-      link.addEventListener('load', () => { resolve(undefined); });
+      link.addEventListener('load', () => {
+        resolve(undefined);
+      });
       link.addEventListener('error', () => {
         reject(`Stylesheet failed to load: ${href}`);
       });
@@ -137,7 +129,9 @@ class ThemeManager {
 
     themes[name] = theme;
 
-    return new DisposableDelegate(() => { delete themes[name]; });
+    return new DisposableDelegate(() => {
+      delete themes[name];
+    });
   }
 
   /**
@@ -145,6 +139,13 @@ class ThemeManager {
    */
   setTheme(name: string): Promise<void> {
     return this._settings.set('theme', name);
+  }
+
+  /**
+   * Test whether a given theme is light.
+   */
+  isLight(name: string): boolean {
+    return this._themes[name].isLight;
   }
 
   /**
@@ -170,8 +171,12 @@ class ThemeManager {
     // be aborted, the order in which they occur must be enforced.
     if (outstanding) {
       outstanding
-        .then(() => { this._loadSettings(); })
-        .catch(() => { this._loadSettings(); });
+        .then(() => {
+          this._loadSettings();
+        })
+        .catch(() => {
+          this._loadSettings();
+        });
       this._outstanding = null;
       return;
     }
@@ -232,14 +237,21 @@ class ThemeManager {
     // Unload the previously loaded theme.
     const old = current ? themes[current].unload() : Promise.resolve();
 
-    return Promise.all([old, themes[theme].load()]).then(() => {
-      this._current = theme;
-      Private.fitAll(this._host);
-      splash.dispose();
-    }).catch(reason => {
-      this._onError(reason);
-      splash.dispose();
-    });
+    return Promise.all([old, themes[theme].load()])
+      .then(() => {
+        this._current = theme;
+        Private.fitAll(this._host);
+        splash.dispose();
+        this._themeChanged.emit({
+          name: 'theme',
+          oldValue: current,
+          newValue: theme
+        });
+      })
+      .catch(reason => {
+        this._onError(reason);
+        splash.dispose();
+      });
   }
 
   /**
@@ -259,23 +271,21 @@ class ThemeManager {
   private _links: HTMLLinkElement[] = [];
   private _outstanding: Promise<void> | null = null;
   private _pending = 0;
-  private _requests: { [theme: string]: number } = { };
+  private _requests: { [theme: string]: number } = {};
   private _settings: ISettingRegistry.ISettings;
   private _splash: ISplashScreen;
-  private _themes: { [key: string]: ThemeManager.ITheme } = { };
+  private _themes: { [key: string]: ThemeManager.ITheme } = {};
+  private _themeChanged = new Signal<this, IChangedArgs<string>>(this);
 }
-
 
 /**
  * A namespace for `ThemeManager` statics.
  */
-export
-namespace ThemeManager {
+export namespace ThemeManager {
   /**
    * The options used to create a theme manager.
    */
-  export
-  interface IOptions {
+  export interface IOptions {
     /**
      * The host widget for the theme manager.
      */
@@ -305,12 +315,18 @@ namespace ThemeManager {
   /**
    * An interface for a theme.
    */
-  export
-  interface ITheme {
+  export interface ITheme {
     /**
      * The display name of the theme.
      */
     name: string;
+
+    /**
+     * Whether the theme is light or dark. Downstream authors
+     * of extensions can use this information to customize their
+     * UI depending upon the current theme.
+     */
+    isLight: boolean;
 
     /**
      * Load the theme.
@@ -328,7 +344,6 @@ namespace ThemeManager {
   }
 }
 
-
 /**
  * A namespace for module private data.
  */
@@ -336,8 +351,7 @@ namespace Private {
   /**
    * Fit a widget and all of its children, recursively.
    */
-  export
-  function fitAll(widget: Widget): void {
+  export function fitAll(widget: Widget): void {
     each(widget.children(), fitAll);
     widget.fit();
   }
