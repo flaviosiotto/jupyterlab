@@ -11,7 +11,11 @@ import { DocumentManager, IDocumentManager } from '@jupyterlab/docmanager';
 
 import { DocumentRegistry, TextModelFactory } from '@jupyterlab/docregistry';
 
-import { ServiceManager } from '@jupyterlab/services';
+import {
+  Contents,
+  ContentsManager,
+  ServiceManager
+} from '@jupyterlab/services';
 
 import {
   FileBrowserModel,
@@ -25,6 +29,29 @@ import {
   signalToPromises
 } from '@jupyterlab/testutils';
 import { toArray } from '@phosphor/algorithm';
+
+/**
+ * A contents manager that delays requests by less each time it is called
+ * in order to simulate out-of-order responses from the server.
+ */
+class DelayedContentsManager extends ContentsManager {
+  get(
+    path: string,
+    options?: Contents.IFetchOptions
+  ): Promise<Contents.IModel> {
+    return new Promise<Contents.IModel>(resolve => {
+      const delay = this._delay;
+      this._delay -= 500;
+      super.get(path, options).then(contents => {
+        setTimeout(() => {
+          resolve(contents);
+        }, Math.max(delay, 0));
+      });
+    });
+  }
+
+  private _delay = 1000;
+}
 
 describe('filebrowser/model', () => {
   let manager: IDocumentManager;
@@ -223,6 +250,33 @@ describe('filebrowser/model', () => {
         await model.cd('..');
         expect(model.path).to.equal('');
       });
+
+      it('should be resilient to a slow initial fetch', async () => {
+        let delayedServiceManager = new ServiceManager();
+        (delayedServiceManager as any).contents = new DelayedContentsManager();
+        let manager = new DocumentManager({
+          registry,
+          opener,
+          manager: delayedServiceManager
+        });
+        model = new FileBrowserModel({ manager, state });
+
+        const paths: string[] = [];
+        // An initial refresh is called in the constructor.
+        // If it is too slow, it can come in after the directory change,
+        // causing a directory set by, e.g., the tree handler to be wrong.
+        // This checks to make sure we are handling that case correctly.
+        const refresh = model.refresh().then(() => paths.push(model.path));
+        const cd = model.cd('src').then(() => paths.push(model.path));
+        await Promise.all([refresh, cd]);
+        expect(model.path).to.equal('src');
+        expect(paths).to.eql(['', 'src']);
+
+        manager.dispose();
+        delayedServiceManager.contents.dispose();
+        delayedServiceManager.dispose();
+        model.dispose();
+      });
     });
 
     describe('#restore()', () => {
@@ -350,33 +404,36 @@ describe('filebrowser/model', () => {
           );
         });
 
-        it('should not upload large notebook file', async () => {
-          const fname = UUID.uuid4() + '.ipynb';
-          const file = new File([new ArrayBuffer(LARGE_FILE_SIZE + 1)], fname);
-          try {
-            await model.upload(file);
-            throw Error('Upload should have failed');
-          } catch (err) {
-            expect(err).to.equal(`Cannot upload file (>15 MB). ${fname}`);
+        for (const ending of ['.txt', '.ipynb']) {
+          for (const size of [
+            CHUNK_SIZE - 1,
+            CHUNK_SIZE,
+            CHUNK_SIZE + 1,
+            2 * CHUNK_SIZE
+          ]) {
+            it(`should upload a large ${ending} file of size ${size}`, async () => {
+              const fname = UUID.uuid4() + ending;
+              // minimal valid (according to server) notebook
+              let content =
+                '{"nbformat": 4, "metadata": {"_": ""}, "nbformat_minor": 2, "cells": []}';
+              // make metadata longer so that total document is `size` long
+              content = content.replace(
+                '"_": ""',
+                `"_": "${' '.repeat(size - content.length)}"`
+              );
+              const file = new File([content], fname, { type: 'text/plain' });
+              await model.upload(file);
+              const {
+                content: newContent
+              } = await model.manager.services.contents.get(fname);
+              // the contents of notebooks are returned as objects instead of strings
+              if (ending === '.ipynb') {
+                expect(newContent).to.deep.equal(JSON.parse(content));
+              } else {
+                expect(newContent).to.equal(content);
+              }
+            });
           }
-        });
-
-        for (const size of [
-          CHUNK_SIZE - 1,
-          CHUNK_SIZE,
-          CHUNK_SIZE + 1,
-          2 * CHUNK_SIZE
-        ]) {
-          it(`should upload a large file of size ${size}`, async () => {
-            const fname = UUID.uuid4() + '.txt';
-            const content = 'a'.repeat(size);
-            const file = new File([content], fname);
-            await model.upload(file);
-            const contentsModel = await model.manager.services.contents.get(
-              fname
-            );
-            expect(contentsModel.content).to.equal(content);
-          });
         }
         it(`should produce progress as a large file uploads`, async () => {
           const fname = UUID.uuid4() + '.txt';

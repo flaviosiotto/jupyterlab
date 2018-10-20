@@ -58,7 +58,10 @@ export class ThemeManager {
 
     registry.load(key).then(settings => {
       this._settings = settings;
-      this._settings.changed.connect(this._loadSettings, this);
+      this._settings.changed.connect(
+        this._loadSettings,
+        this
+      );
       this._loadSettings();
     });
   }
@@ -224,7 +227,7 @@ export class ThemeManager {
     const current = this._current;
     const links = this._links;
     const themes = this._themes;
-    const splash = this._splash.show();
+    const splash = this._splash.show(themes[theme].isLight);
 
     // Unload any CSS files that have been loaded.
     links.forEach(link => {

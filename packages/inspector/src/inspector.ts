@@ -191,8 +191,14 @@ export class InspectorPanel extends TabPanel implements IInspector {
     // Connect new signal handler.
     if (this._source) {
       this._source.standby = false;
-      this._source.inspected.connect(this.onInspectorUpdate, this);
-      this._source.disposed.connect(this.onSourceDisposed, this);
+      this._source.inspected.connect(
+        this.onInspectorUpdate,
+        this
+      );
+      this._source.disposed.connect(
+        this.onSourceDisposed,
+        this
+      );
     }
   }
 
@@ -430,7 +436,7 @@ class InspectorItem extends Widget {
     }
 
     let clear = new ToolbarButton({
-      className: CLEAR_CLASS,
+      iconClassName: CLEAR_CLASS + ' jp-Icon jp-Icon-16',
       onClick: () => {
         this._clear();
       },
@@ -439,7 +445,7 @@ class InspectorItem extends Widget {
     toolbar.addItem('clear', clear);
 
     let back = new ToolbarButton({
-      className: BACK_CLASS,
+      iconClassName: BACK_CLASS + ' jp-Icon jp-Icon-16',
       onClick: () => {
         this._back();
       },
@@ -448,7 +454,7 @@ class InspectorItem extends Widget {
     toolbar.addItem('back', back);
 
     let forward = new ToolbarButton({
-      className: FORWARD_CLASS,
+      iconClassName: FORWARD_CLASS + ' jp-Icon jp-Icon-16',
       onClick: () => {
         this._forward();
       },

@@ -791,6 +791,17 @@
       },
       "type": "object"
     },
+    "notebook:run-in-console": {
+      "default": {},
+      "properties": {
+        "command": { "default": "notebook:run-in-console" },
+        "keys": { "default": [""] },
+        "selector": { "default": ".jp-Notebook.jp-mod-editMode" },
+        "title": { "default": "Run In Console" },
+        "category": { "default": "Notebook Cell Operations" }
+      },
+      "type": "object"
+    },
     "notebook:run-cell-and-select-next": {
       "default": {},
       "properties": {
@@ -986,8 +997,7 @@
         "command": { "default": "tooltip:launch-console" },
         "keys": { "default": ["Shift Tab"] },
         "selector": {
-          "default":
-            ".jp-CodeConsole-promptCell .jp-InputArea-editor:not(.jp-mod-has-primary-selection):not(.jp-mod-in-leading-whitespace)"
+          "default": ".jp-CodeConsole-promptCell .jp-InputArea-editor:not(.jp-mod-has-primary-selection):not(.jp-mod-in-leading-whitespace)"
         },
         "title": { "default": "Invoke Completer" },
         "category": { "default": "Tooltips" }
@@ -1000,8 +1010,7 @@
         "command": { "default": "tooltip:launch-notebook" },
         "keys": { "default": ["Shift Tab"] },
         "selector": {
-          "default":
-            ".jp-Notebook.jp-mod-editMode .jp-InputArea-editor:not(.jp-mod-has-primary-selection):not(.jp-mod-in-leading-whitespace)"
+          "default": ".jp-Notebook.jp-mod-editMode .jp-InputArea-editor:not(.jp-mod-has-primary-selection):not(.jp-mod-in-leading-whitespace)"
         },
         "title": { "default": "Invoke Completer" },
         "category": { "default": "Tooltips" }

@@ -3,7 +3,7 @@
 
 import { expect } from 'chai';
 
-import { IClientSession } from '@jupyterlab/apputils';
+import { ClientSession, IClientSession } from '@jupyterlab/apputils';
 
 import { CodeEditor, CodeEditorWrapper } from '@jupyterlab/codeeditor';
 
@@ -14,7 +14,7 @@ import {
   CompletionHandler,
   CompleterModel,
   KernelConnector
-} from '@jupyterlab/completer';
+} from '@jupyterlab/completer/src';
 
 import { createClientSession } from '@jupyterlab/testutils';
 
@@ -58,13 +58,13 @@ describe('@jupyterlab/completer', () => {
   let connector: KernelConnector;
   let session: IClientSession;
 
-  before(async () => {
+  beforeAll(async () => {
     session = await createClientSession();
-    await session.initialize();
+    await (session as ClientSession).initialize();
     connector = new KernelConnector({ session });
   });
 
-  after(() => session.shutdown());
+  afterAll(() => session.shutdown());
 
   describe('CompletionHandler', () => {
     describe('#constructor()', () => {

@@ -106,8 +106,14 @@ export class OutputArea extends Widget {
       let output = model.get(i);
       this._insertOutput(i, output);
     }
-    model.changed.connect(this.onModelChanged, this);
-    model.stateChanged.connect(this.onStateChanged, this);
+    model.changed.connect(
+      this.onModelChanged,
+      this
+    );
+    model.stateChanged.connect(
+      this.onStateChanged,
+      this
+    );
   }
 
   /**
@@ -628,7 +634,7 @@ export class OutputPrompt extends Widget implements IOutputPrompt {
     if (value === null) {
       this.node.textContent = '';
     } else {
-      this.node.textContent = `Out[${value}]:`;
+      this.node.textContent = `[${value}]:`;
     }
   }
 

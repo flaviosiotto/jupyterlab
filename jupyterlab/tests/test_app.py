@@ -1,36 +1,33 @@
 # coding: utf-8
 """A lab app that runs a sub process for a demo or a test."""
 
-from __future__ import print_function, absolute_import
-
 from os import path as osp
 from os.path import join as pjoin
+from stat import S_IRUSR, S_IRGRP, S_IROTH
 import argparse
 import atexit
 import glob
 import json
+import logging
 import os
+import pkg_resources
 import shutil
 import sys
 import tempfile
-import logging
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
-try:
-    from unittest.mock import patch
-except ImportError:
-    from mock import patch  # py2
 
-from traitlets import Unicode
-from ipython_genutils import py3compat
-from ipython_genutils.tempdir import TemporaryDirectory
+from traitlets import Bool, Dict, Unicode
 from ipykernel.kernelspec import write_kernel_spec
 import jupyter_core
+from jupyter_core.application import base_aliases, base_flags
 
-from jupyterlab_launcher.process_app import ProcessApp
+from jupyterlab_server.process_app import ProcessApp
+import jupyterlab_server
 
 
 HERE = osp.realpath(osp.dirname(__file__))
-PY2 = sys.version_info[0] < 3
 
 
 def _create_notebook_dir():
@@ -39,6 +36,36 @@ def _create_notebook_dir():
     os.mkdir(osp.join(root_dir, 'src'))
     with open(osp.join(root_dir, 'src', 'temp.txt'), 'w') as fid:
         fid.write('hello')
+
+    readonly_filepath = osp.join(root_dir, 'src', 'readonly-temp.txt')
+    with open(readonly_filepath, 'w') as fid:
+        fid.write('hello from a readonly file')
+
+    os.chmod(readonly_filepath, S_IRUSR | S_IRGRP | S_IROTH)
+    atexit.register(lambda: shutil.rmtree(root_dir, True))
+    return root_dir
+
+
+def _create_schemas_dir():
+    """Create a temporary directory for schemas."""
+    root_dir = tempfile.mkdtemp(prefix='mock_schemas')
+    extension_dir = osp.join(root_dir, '@jupyterlab', 'apputils-extension')
+    os.makedirs(extension_dir)
+
+    # Get schema content.
+    schema_package = jupyterlab_server.__name__
+    schema_path = 'tests/schemas/@jupyterlab/apputils-extension/themes.json'
+    themes = pkg_resources.resource_string(schema_package, schema_path)
+
+    with open(osp.join(extension_dir, 'themes.json'), 'w') as fid:
+        fid.write(themes.decode('utf-8'))
+    atexit.register(lambda: shutil.rmtree(root_dir, True))
+    return root_dir
+
+
+def _create_user_settings_dir():
+    """Create a temporary directory for workspaces."""
+    root_dir = tempfile.mkdtemp(prefix='mock_user_settings')
     atexit.register(lambda: shutil.rmtree(root_dir, True))
     return root_dir
 
@@ -98,7 +125,10 @@ class _test_env(object):
     def stop(self):
         self.env_patch.stop()
         self.path_patch.stop()
-        self.test_dir.cleanup()
+        try:
+            self.test_dir.cleanup()
+        except PermissionError as e:
+            pass
 
     def __enter__(self):
         self.start()
@@ -113,6 +143,8 @@ class ProcessTestApp(ProcessApp):
     """
     allow_origin = Unicode('*')
     notebook_dir = Unicode(_create_notebook_dir())
+    schemas_dir = Unicode(_create_schemas_dir())
+    user_settings_dir = Unicode(_create_user_settings_dir())
     workspaces_dir = Unicode(_create_workspaces_dir())
 
     def __init__(self):
@@ -127,6 +159,8 @@ class ProcessTestApp(ProcessApp):
     def start(self):
         _install_kernels()
         self.kernel_manager.default_kernel_name = 'echo'
+        self.lab_config.schemas_dir = self.schemas_dir
+        self.lab_config.user_settings_dir = self.user_settings_dir
         self.lab_config.workspaces_dir = self.workspaces_dir
         ProcessApp.start(self)
 
@@ -141,11 +175,110 @@ class ProcessTestApp(ProcessApp):
             os._exit(1)
 
 
+jest_aliases = dict(base_aliases)
+jest_aliases.update({
+    'testPathPattern': 'JestApp.testPathPattern'
+})
+jest_aliases.update({
+    'testNamePattern': 'JestApp.testNamePattern'
+})
+
+
+jest_flags = dict(base_flags)
+jest_flags['coverage'] = (
+    {'JestApp': {'coverage': True}},
+    'Run coverage'
+)
+jest_flags['watchAll'] = (
+    {'JestApp': {'watchAll': True}},
+    'Watch all test files'
+)
+
+
+class JestApp(ProcessTestApp):
+    """A notebook app that runs a jest test."""
+
+    coverage = Bool(False, help='Whether to run coverage').tag(config=True)
+
+    testPathPattern = Unicode('').tag(config=True)
+
+    testNamePattern = Unicode('').tag(config=True)
+
+    watchAll = Bool(False).tag(config=True)
+
+    aliases = jest_aliases
+
+    flags = jest_flags
+
+    jest_dir = Unicode('')
+
+    test_config = Dict(dict(foo='bar'))
+
+    open_browser = False
+
+    def get_command(self):
+        """Get the command to run"""
+        terminalsAvailable = self.web_app.settings['terminals_available']
+        debug = self.log.level == logging.DEBUG
+
+        # find jest
+        target = osp.join('node_modules', 'jest', 'bin', 'jest.js')
+        jest = ''
+        cwd = osp.realpath(self.jest_dir)
+        while osp.dirname(cwd) != cwd:
+            if osp.exists(osp.join(cwd, target)):
+                jest = osp.join(cwd, target)
+                break
+            cwd = osp.dirname(cwd)
+        if not jest:
+            raise RuntimeError('jest not found!')
+
+        cmd = ['node']
+        if self.coverage:
+            cmd += [jest, '--coverage']
+        elif debug:
+            cmd += ['--inspect-brk', jest,  '--no-cache']
+            if self.watchAll:
+                cmd += ['--watchAll']
+            else:
+                cmd += ['--watch']
+        else:
+            cmd += [jest]
+
+        if self.testPathPattern:
+            cmd += ['--testPathPattern', self.testPathPattern]
+
+        if self.testNamePattern:
+            cmd += ['--testNamePattern', self.testNamePattern]
+
+        cmd += ['--runInBand']
+
+        if self.log_level > logging.INFO:
+            cmd += ['--silent']
+
+        config = dict(baseUrl=self.connection_url,
+                      terminalsAvailable=str(terminalsAvailable),
+                      token=self.token)
+        config.update(**self.test_config)
+
+        td = tempfile.mkdtemp()
+        atexit.register(lambda: shutil.rmtree(td, True))
+
+        config_path = os.path.join(td, 'config.json')
+        with open(config_path, 'w') as fid:
+            json.dump(config, fid)
+
+        env = os.environ.copy()
+        env['JUPYTER_CONFIG_DATA'] = config_path
+        return cmd, dict(cwd=self.jest_dir, env=env)
+
+
 class KarmaTestApp(ProcessTestApp):
     """A notebook app that runs the jupyterlab karma tests.
     """
     karma_pattern = Unicode('src/*.spec.ts*')
     karma_base_dir = Unicode('')
+    karma_coverage_dir = Unicode('')
 
     def get_command(self):
         """Get the command to run."""
@@ -183,38 +316,44 @@ class KarmaTestApp(ProcessTestApp):
         if not files:
             msg = 'No files matching "%s" found in "%s"'
             raise ValueError(msg % (pattern, cwd))
-        # Find and validate the coverage folder
-        with open(pjoin(cwd, 'package.json')) as fid:
-            data = json.load(fid)
-        name = data['name'].replace('@jupyterlab/test-', '')
-        folder = osp.realpath(pjoin(HERE, '..', '..', 'packages', name))
-        if not osp.exists(folder):
-            raise ValueError(
-                'No source package directory found for "%s", use the pattern '
-                '"@jupyterlab/test-<package_dir_name>"' % name
-            )
 
-        if PY2:
-            karma_inject_file = karma_inject_file.encode('utf-8')
-            folder = folder.encode('utf-8')
+        # Find and validate the coverage folder if not specified
+        if not self.karma_coverage_dir:
+            with open(pjoin(cwd, 'package.json')) as fid:
+                data = json.load(fid)
+            name = data['name'].replace('@jupyterlab/test-', '')
+            folder = osp.realpath(pjoin(HERE, '..', '..', 'packages', name))
+            if not osp.exists(folder):
+                raise ValueError(
+                    'No source package directory found for "%s", use the pattern '
+                    '"@jupyterlab/test-<package_dir_name>"' % name
+                )
+            self.karma_coverage_dir = folder
+
         env = os.environ.copy()
         env['KARMA_INJECT_FILE'] = karma_inject_file
-        env.setdefault('KARMA_FILE_PATTERN', py3compat.unicode_to_str(pattern))
-        env.setdefault('KARMA_COVER_FOLDER', folder)
+        env.setdefault('KARMA_FILE_PATTERN', pattern)
+        env.setdefault('KARMA_COVER_FOLDER', self.karma_coverage_dir)
         cwd = self.karma_base_dir
         cmd = ['karma', 'start'] + sys.argv[1:]
         return cmd, dict(env=env, cwd=cwd)
 
 
-def run_karma(base_dir):
+def run_jest(jest_dir):
+    """Run a jest test in the given base directory.
+    """
+    app = JestApp.instance()
+    app.jest_dir = jest_dir
+    app.initialize()
+    app.start()
+
+
+def run_karma(base_dir, coverage_dir=''):
     """Run a karma test in the given base directory.
     """
     logging.disable(logging.WARNING)
     app = KarmaTestApp.instance()
     app.karma_base_dir = base_dir
+    app.karma_coverage_dir = coverage_dir
     app.initialize([])
     app.start()
-
-
-if __name__ == '__main__':
-    TestApp.launch_instance()

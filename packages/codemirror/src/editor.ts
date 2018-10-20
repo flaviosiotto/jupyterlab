@@ -31,6 +31,7 @@ import 'codemirror/addon/edit/closebrackets.js';
 import 'codemirror/addon/scroll/scrollpastend.js';
 import 'codemirror/addon/search/searchcursor';
 import 'codemirror/addon/search/search';
+import 'codemirror/addon/search/jump-to-line';
 import 'codemirror/keymap/emacs.js';
 import 'codemirror/keymap/sublime.js';
 import 'codemirror/keymap/vim.js';
@@ -114,9 +115,18 @@ export class CodeMirrorEditor implements CodeEditor.IEditor {
     }, 3000);
 
     // Connect to changes.
-    model.value.changed.connect(this._onValueChanged, this);
-    model.mimeTypeChanged.connect(this._onMimeTypeChanged, this);
-    model.selections.changed.connect(this._onSelectionsChanged, this);
+    model.value.changed.connect(
+      this._onValueChanged,
+      this
+    );
+    model.mimeTypeChanged.connect(
+      this._onMimeTypeChanged,
+      this
+    );
+    model.selections.changed.connect(
+      this._onSelectionsChanged,
+      this
+    );
 
     CodeMirror.on(editor, 'keydown', (editor: CodeMirror.Editor, event) => {
       let index = ArrayExt.findFirstIndex(this._keydownHandlers, handler => {

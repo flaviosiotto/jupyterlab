@@ -5,7 +5,7 @@ import { expect } from 'chai';
 
 import { SessionManager } from '@jupyterlab/services';
 
-import { ClientSession, IClientSession } from '@jupyterlab/apputils';
+import { ClientSession, IClientSession } from '@jupyterlab/apputils/src';
 
 import { UUID } from '@phosphor/coreutils';
 
@@ -16,7 +16,7 @@ describe('@jupyterlab/apputils', () => {
     const manager = new SessionManager();
     let session: ClientSession;
 
-    before(() => manager.ready);
+    beforeAll(() => manager.ready);
 
     beforeEach(() => {
       session = new ClientSession({
@@ -372,12 +372,12 @@ describe('@jupyterlab/apputils', () => {
       it('should restart if the user accepts the dialog', async () => {
         let called = false;
 
-        await session.initialize();
         session.statusChanged.connect((sender, args) => {
           if (args === 'restarting') {
             called = true;
           }
         });
+        await session.initialize();
 
         const restart = ClientSession.restartKernel(session.kernel);
 

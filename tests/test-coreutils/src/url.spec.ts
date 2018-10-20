@@ -3,7 +3,7 @@
 
 import { expect } from 'chai';
 
-import { URLExt } from '@jupyterlab/coreutils';
+import { URLExt } from '@jupyterlab/coreutils/src';
 
 describe('@jupyterlab/coreutils', () => {
   describe('URLExt', () => {
@@ -53,6 +53,26 @@ describe('@jupyterlab/coreutils', () => {
     describe('.encodeParts()', () => {
       it('should encode and join a sequence of url components', () => {
         expect(URLExt.encodeParts('>/>')).to.equal('%3E/%3E');
+      });
+    });
+
+    describe('.normalize()', () => {
+      it('should handle leading slash', () => {
+        expect(URLExt.normalize('/')).to.equal(location.origin + '/');
+      });
+
+      it('should handle leading double slash', () => {
+        expect(URLExt.normalize('//foo')).to.equal(
+          location.protocol + '//foo/'
+        );
+      });
+
+      it('should handle http', () => {
+        expect(URLExt.normalize('http://foo')).to.equal('http://foo/');
+      });
+
+      it('should handle other', () => {
+        expect(URLExt.normalize('ftp://foo')).to.equal('ftp://foo/');
       });
     });
 

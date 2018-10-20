@@ -372,9 +372,18 @@ export class StaticNotebook extends Widget {
     each(cells, (cell: ICellModel, i: number) => {
       this._insertCell(i, cell);
     });
-    cells.changed.connect(this._onCellsChanged, this);
-    newValue.contentChanged.connect(this.onModelContentChanged, this);
-    newValue.metadata.changed.connect(this.onMetadataChanged, this);
+    cells.changed.connect(
+      this._onCellsChanged,
+      this
+    );
+    newValue.contentChanged.connect(
+      this.onModelContentChanged,
+      this
+    );
+    newValue.metadata.changed.connect(
+      this.onMetadataChanged,
+      this
+    );
   }
 
   /**
@@ -1101,7 +1110,7 @@ export class Notebook extends StaticNotebook {
     let node = this.node;
     let ar = node.getBoundingClientRect();
     let delta = position - ar.top - ar.height / 2;
-    if (Math.abs(delta) > ar.height * threshold / 100) {
+    if (Math.abs(delta) > (ar.height * threshold) / 100) {
       node.scrollTop += delta;
     }
   }
@@ -1273,7 +1282,10 @@ export class Notebook extends StaticNotebook {
         }
       });
     }
-    cell.editor.edgeRequested.connect(this._onEdgeRequest, this);
+    cell.editor.edgeRequested.connect(
+      this._onEdgeRequest,
+      this
+    );
     // If the insertion happened above, increment the active cell
     // index, otherwise it stays the same.
     this.activeCellIndex =
@@ -2052,7 +2064,7 @@ namespace Private {
               { className: DRAG_IMAGE_CLASS },
               h.span(
                 { className: CELL_DRAG_PROMPT_CLASS },
-                'In [' + promptNumber + ']:'
+                '[' + promptNumber + ']:'
               ),
               h.span({ className: CELL_DRAG_CONTENT_CLASS }, cellContent)
             ),
@@ -2079,7 +2091,7 @@ namespace Private {
               { className: `${DRAG_IMAGE_CLASS} ${SINGLE_DRAG_IMAGE_CLASS}` },
               h.span(
                 { className: CELL_DRAG_PROMPT_CLASS },
-                'In [' + promptNumber + ']:'
+                '[' + promptNumber + ']:'
               ),
               h.span({ className: CELL_DRAG_CONTENT_CLASS }, cellContent)
             )

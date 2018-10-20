@@ -22,6 +22,8 @@ import {
 
 import { ArrayExt, each, toArray } from '@phosphor/algorithm';
 
+import { JSONObject } from '@phosphor/coreutils';
+
 import { ElementExt } from '@phosphor/domutils';
 
 import { ISignal, Signal } from '@phosphor/signaling';
@@ -699,7 +701,7 @@ export namespace NotebookActions {
   /**
    * Select all of the cells of the notebook.
    *
-   * @param notebook - the targe notebook widget.
+   * @param notebook - the target notebook widget.
    */
   export function selectAll(notebook: Notebook): void {
     if (!notebook.model || !notebook.activeCell) {
@@ -1406,18 +1408,33 @@ namespace Private {
     notebook.activeCellIndex = lastIndex;
     notebook.deselectAll();
 
-    return Promise.all(
-      selected.map(child => runCell(notebook, child, session))
-    ).then(results => {
-      if (notebook.isDisposed) {
+    return Promise.all(selected.map(child => runCell(notebook, child, session)))
+      .then(results => {
+        if (notebook.isDisposed) {
+          return false;
+        }
+
+        // Post an update request.
+        notebook.update();
+
+        return results.every(result => result);
+      })
+      .catch(reason => {
+        if (reason.message === 'KernelReplyNotOK') {
+          selected.map((cell: CodeCell) => {
+            // Remove '*' prompt from cells that didn't execute
+            if (cell.model.executionCount == null) {
+              cell.setPrompt('');
+            }
+          });
+        } else {
+          throw reason;
+        }
+
+        notebook.update();
+
         return false;
-      }
-
-      // Post an update request.
-      notebook.update();
-
-      return results.every(result => result);
-    });
+      });
   }
 
   /**
@@ -1460,9 +1477,9 @@ namespace Private {
                 }
 
                 return true;
+              } else {
+                throw new Error('KernelReplyNotOK');
               }
-
-              return false;
             })
             .catch(reason => {
               if (reason.message !== 'Canceled') {
@@ -1548,9 +1565,15 @@ namespace Private {
     notebook.mode = 'command';
     clipboard.clear();
 
-    const data = notebook.widgets
+    let data = notebook.widgets
       .filter(cell => notebook.isSelectedOrActive(cell))
-      .map(cell => cell.model.toJSON());
+      .map(cell => cell.model.toJSON())
+      .map(cellJSON => {
+        if ((cellJSON.metadata as JSONObject).deletable !== undefined) {
+          delete (cellJSON.metadata as JSONObject).deletable;
+        }
+        return cellJSON;
+      });
 
     clipboard.setData(JUPYTER_CELL_MIME, data);
     if (cut) {

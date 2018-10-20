@@ -14,15 +14,8 @@ matrix:
   - env: GROUP=js
   - env: GROUP=integrity
   - env: GROUP=python
-  - env: GROUP=js_services
-    python: 2.7
-  - env: GROUP=python
+  - env: GROUP=cli
     python: 3.5
-  - env: GROUP=python
-  - env: GROUP=js_cov
-  - env: GROUP=cli
-    python: 2.7
-  - env: GROUP=cli
   - env: GROUP=docs
 env:
   global:

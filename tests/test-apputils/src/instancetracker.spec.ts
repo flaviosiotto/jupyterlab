@@ -3,7 +3,7 @@
 
 import { expect } from 'chai';
 
-import { InstanceTracker } from '@jupyterlab/apputils';
+import { InstanceTracker } from '@jupyterlab/apputils/src';
 
 import { signalToPromise, testEmission } from '@jupyterlab/testutils';
 
@@ -63,6 +63,7 @@ describe('@jupyterlab/apputils', () => {
         let promise = signalToPromise(tracker.widgetAdded);
         tracker.add(widget);
         const [sender, args] = await promise;
+        expect(sender).to.equal(tracker);
         expect(args).to.equal(widget);
       });
 

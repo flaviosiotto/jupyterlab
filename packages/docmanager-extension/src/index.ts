@@ -187,16 +187,31 @@ function addCommands(
     return !!(currentWidget && docManager.contextForWidget(currentWidget));
   };
 
+  const isWritable = () => {
+    const { currentWidget } = shell;
+    if (!currentWidget) {
+      return false;
+    }
+    const context = docManager.contextForWidget(currentWidget);
+    return !!(
+      context &&
+      context.contentsModel &&
+      context.contentsModel.writable
+    );
+  };
+
   // fetches the doc widget associated with the most recent contextmenu event
   const contextMenuWidget = (): Widget => {
-    let pathRe = /[Pp]ath:\s?(.*)\n?/;
-    let pathMatch = app.contextMenuFirst('title', pathRe);
+    const pathRe = /[Pp]ath:\s?(.*)\n?/;
+    const test = (node: HTMLElement) =>
+      node['title'] && !!node['title'].match(pathRe);
+    const node = app.contextMenuFirst(test);
 
-    if (!pathMatch) {
+    if (!node) {
       // fall back to active doc widget if path cannot be obtained from event
       return app.shell.currentWidget;
     }
-
+    const pathMatch = node['title'].match(pathRe);
     return docManager.findWidget(pathMatch[1]);
   };
 
@@ -389,7 +404,7 @@ function addCommands(
   });
 
   commands.addCommand(CommandIDs.openDirect, {
-    label: () => 'Open from Path',
+    label: () => 'Open From Path...',
     caption: 'Open from path',
     isEnabled: () => true,
     execute: () => {
@@ -480,7 +495,7 @@ function addCommands(
   commands.addCommand(CommandIDs.save, {
     label: () => `Save ${fileType()}`,
     caption: 'Save and create checkpoint',
-    isEnabled,
+    isEnabled: isWritable,
     execute: () => {
       if (isEnabled()) {
         let context = docManager.contextForWidget(shell.currentWidget);
@@ -512,11 +527,18 @@ function addCommands(
       const iterator = shell.widgets('main');
       let widget = iterator.next();
       while (widget) {
-        if (docManager.contextForWidget(widget)) {
+        let context = docManager.contextForWidget(widget);
+        if (
+          context &&
+          context.contentsModel &&
+          context.contentsModel.writable
+        ) {
           return true;
         }
         widget = iterator.next();
       }
+      // disable saveAll if all of the widgets models
+      // have writable === false
       return false;
     },
     execute: () => {
@@ -564,8 +586,9 @@ function addCommands(
     isEnabled,
     execute: args => {
       const widget = contextMenuWidget();
-      const options =
-        (args['options'] as DocumentRegistry.IOpenOptions) || void 0;
+      const options = (args['options'] as DocumentRegistry.IOpenOptions) || {
+        mode: 'split-right'
+      };
       if (!widget) {
         return;
       }
@@ -615,7 +638,8 @@ function addCommands(
       }
       return commands.execute('docmanager:open', {
         path,
-        factory: MARKDOWN_FACTORY
+        factory: MARKDOWN_FACTORY,
+        options: args['options']
       });
     }
   });

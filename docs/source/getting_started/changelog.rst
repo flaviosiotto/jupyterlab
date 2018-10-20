@@ -3,6 +3,210 @@
 JupyterLab Changelog
 ====================
 
+`v0.35.0 <https://github.com/jupyterlab/jupyterlab/releases/tag/v0.35.0>`__
+---------------------------------------------------------------------------
+
+October 3, 2018
+^^^^^^^^^^^^^^^
+
+See the `JupyterLab
+0.35.0 <https://github.com/jupyterlab/jupyterlab/milestone/18?closed=1>`__
+milestone on GitHub for the full list of pull requests and issues closed.
+
+Features
+^^^^^^^^
+* A notebook cell can now be readonly, reflecting its ``enabled`` metadata. (`#5401 <https://github.com/jupyterlab/jupyterlab/pull/5401>`__, `#1312 <https://github.com/jupyterlab/jupyterlab/issues/1312>`__)
+* Add "Go To Line" in the Edit menu for text editors. (`#5377 <https://github.com/jupyterlab/jupyterlab/pull/5377>`__)
+* Sidebar panels can now be switched between left and right sidebars. Right-click on a sidebar tab to move it to the other sidebar. (`#5347 <https://github.com/jupyterlab/jupyterlab/pull/5347>`__, `#5054 <https://github.com/jupyterlab/jupyterlab/issues/5054>`__, `#3707 <https://github.com/jupyterlab/jupyterlab/issues/3707>`__)
+* Make the sidebar a bit narrower, and make the minimum width adjustable from a theme. (`#5245 <https://github.com/jupyterlab/jupyterlab/pull/5245>`__)
+* Populate the File, Export Notebook As... submenu from the server nbconvert capabilities. (`#5217 <https://github.com/jupyterlab/jupyterlab/pull/5217>`__)
+* Server contents managers can now tell JupyterLab to open files as notebooks. For example, several custom contents managers save and open notebooks as Markdown files. (`#5247 <https://github.com/jupyterlab/jupyterlab/pull/5247>`__, `#4924 <https://github.com/jupyterlab/jupyterlab/issues/4924>`__)
+* Add a command-line interface for managing workspaces. (`#5166 <https://github.com/jupyterlab/jupyterlab/pull/5166>`__)
+* Allow safe inline CSS styles in Markdown. (`#5012 <https://github.com/jupyterlab/jupyterlab/pull/5012>`__, `#1812 <https://github.com/jupyterlab/jupyterlab/issues/1812>`__)
+* Add Quit to File menu when appropriate. (`#5226 <https://github.com/jupyterlab/jupyterlab/pull/5226>`__, `#5252 <https://github.com/jupyterlab/jupyterlab/pull/5252>`__, `#5246 <https://github.com/jupyterlab/jupyterlab/issues/5246>`__, `#5280 <https://github.com/jupyterlab/jupyterlab/pull/5280>`__)
+* Rework extension manager user experience. (`#5147 <https://github.com/jupyterlab/jupyterlab/pull/5147>`__, `#5042 <https://github.com/jupyterlab/jupyterlab/issues/5042>`__)
+
+Dark theme
+^^^^^^^^^^
+* Show a dark splash screen when using a dark theme. (`#5339 <https://github.com/jupyterlab/jupyterlab/pull/5339>`__, `#5338 <https://github.com/jupyterlab/jupyterlab/issues/5338>`__, `#5403 <https://github.com/jupyterlab/jupyterlab/pull/5403>`__)
+* Fix code completion menu for a dark theme. (`#5364 <https://github.com/jupyterlab/jupyterlab/pull/5364>`__, `#5349 <https://github.com/jupyterlab/jupyterlab/issues/5349>`__)
+* Style CSV viewer for a dark theme. (`#5304 <https://github.com/jupyterlab/jupyterlab/pull/5304>`__, `#3456 <https://github.com/jupyterlab/jupyterlab/issues/3456>`__)
+* Make Matplotlib figures legible in a dark theme. (`#5232 <https://github.com/jupyterlab/jupyterlab/pull/5232>`__)
+* Fix notebook cell dropdown legibility in a dark theme. (`#5168 <https://github.com/jupyterlab/jupyterlab/issues/5168>`__)
+
+Bug fixes
+^^^^^^^^^
+* Various save options in the file menu and toolbar are now disabled when a file is not writable. (`#5376 <https://github.com/jupyterlab/jupyterlab/pull/5376>`__, `#5391 <https://github.com/jupyterlab/jupyterlab/pull/5391>`__)
+* Kernel selector dialog no longer cuts off kernel names. (`#5260 <https://github.com/jupyterlab/jupyterlab/pull/5260>`__, `#5181 <https://github.com/jupyterlab/jupyterlab/issues/5181>`__)
+* Fix focus issues with the toolbar. (`#5344 <https://github.com/jupyterlab/jupyterlab/pull/5344>`__, `#5324 <https://github.com/jupyterlab/jupyterlab/pull/5324>`__, `#2995 <https://github.com/jupyterlab/jupyterlab/issues/2995>`__, `#5328 <https://github.com/jupyterlab/jupyterlab/pull/5328>`__)
+* Fix toolbar button enabled/disabled status. (`#5278 <https://github.com/jupyterlab/jupyterlab/pull/5278>`__)
+* Table alignment is now respected in Markdown. (`#5301 <https://github.com/jupyterlab/jupyterlab/pull/5301>`__, `#3180 <https://github.com/jupyterlab/jupyterlab/issues/3180>`__)
+* Fix syntax highlighting for Markdown lists. (`#5297 <https://github.com/jupyterlab/jupyterlab/pull/5297>`__, `#2741 <https://github.com/jupyterlab/jupyterlab/issues/2741>`__)
+* Use the current filebrowser instead of the default one for various commands. (`#5390 <https://github.com/jupyterlab/jupyterlab/pull/5390>`__)
+* Fix escaping in link handling to conform to Markdown syntax. This means that spaces in link references now need to be encoded as ``%20``. (`#5383 <https://github.com/jupyterlab/jupyterlab/pull/5383>`__, `#5340 <https://github.com/jupyterlab/jupyterlab/pull/5340>`__, `#5153 <https://github.com/jupyterlab/jupyterlab/issues/5153>`__)
+
+Build system
+^^^^^^^^^^^^
+* Use Typescript 3.1. (`#5360 <https://github.com/jupyterlab/jupyterlab/pull/5360>`__)
+* Use Lerna 3.2.1. (`#5262 <https://github.com/jupyterlab/jupyterlab/pull/5262>`__)
+* Node >=6.11.5 is now required. (`#5227 <https://github.com/jupyterlab/jupyterlab/pull/5227>`__)
+* Pin vega-embed version to 3.18.2. (`#5342 <https://github.com/jupyterlab/jupyterlab/pull/5342>`__)
+* Use Jest for services tests. (`#5251 <https://github.com/jupyterlab/jupyterlab/pull/5251>`__, `#5282 <https://github.com/jupyterlab/jupyterlab/pull/5282>`__)
+* Make it easier for third party extensions to use the JupyterLab test app and testing utilities. (`#5415 <https://github.com/jupyterlab/jupyterlab/pull/5415>`__)
+* Fix ``jupyter lab clean`` on Windows. (`#5400 <https://github.com/jupyterlab/jupyterlab/pull/5400>`__, `#5397 <https://github.com/jupyterlab/jupyterlab/issues/5397>`__)
+* Fix ``jupyter lab build`` on NFS. (`#5237 <https://github.com/jupyterlab/jupyterlab/pull/5237>`__, `#5233 <https://github.com/jupyterlab/jupyterlab/issues/5233>`__)
+* Build wheels for Python 3 only. (`#5287 <https://github.com/jupyterlab/jupyterlab/pull/5287>`__)
+* Migrate to using ``jupyterlab_server`` instead of ``jupyterlab_launcher`` and fix the app example. (`#5316 <https://github.com/jupyterlab/jupyterlab/pull/5316>`__)
+* Move Mathjax 2 typesetter to a library package. (`#5259 <https://github.com/jupyterlab/jupyterlab/pull/5259>`__, `#5257 <https://github.com/jupyterlab/jupyterlab/issues/5257>`__)
+
+For Developers
+^^^^^^^^^^^^^^
+* Default toolbar buttons can be overridden, and mime renderers can now specify toolbar buttons. (`#5398 <https://github.com/jupyterlab/jupyterlab/pull/5398>`__, `#5370 <https://github.com/jupyterlab/jupyterlab/pull/5370>`__, `#5363 <https://github.com/jupyterlab/jupyterlab/issues/5363>`__)
+* A JupyterLab application instance can now be given a document registry, service manager, and command linker. (`#5291 <https://github.com/jupyterlab/jupyterlab/pull/5291>`__)
+
+
+`v0.34.0 <https://github.com/jupyterlab/jupyterlab/releases/tag/v0.34.0>`__
+---------------------------------------------------------------------------
+
+August 18, 2018
+^^^^^^^^^^^^^^^
+
+See the `JupyterLab
+0.34.0 <https://github.com/jupyterlab/jupyterlab/milestone/16?closed=1>`__
+milestone on GitHub for the full list of pull requests and issues closed.
+
+
+Key Features
+^^^^^^^^^^^^
+* Notebooks, consoles, and text files now have access to completions for local
+  tokens.
+* Python 3.5+ is now required to use JupyterLab. Python 2 kernels can still be
+  run within JupyterLab.
+* Added the pipe (``|``) character as a CSV delimiter option.
+* Added "Open From Path..."" to top level ``File`` menu.
+* Added "Copy Download Link" to context menu for files.
+
+
+Changes for Developers
+^^^^^^^^^^^^^^^^^^^^^^
+* Notebooks, consoles, and text files now have access to completions for local
+  tokens. If a text file has a running kernel associated with its path (as
+  happens with an attached console), it also gets completions and tooltips from
+  that kernel. (`#5049 <https://github.com/jupyterlab/jupyterlab/pull/5049>`__)
+* The ``FileBrowser`` widget has a new constructor option ``refreshInterval``,
+  allowing the creator to customize how often the widget polls the storage
+  backend. This can be useful to prevent rate-limiting in certain contexts.
+  (`#5048 <https://github.com/jupyterlab/jupyterlab/pull/5048>`__)
+* The application shell now gets a pair of CSS data attributes indicating the
+  current theme, and whether it is light or dark. Extension authors can write
+  CSS rules targeting these to have their extension UI elements respond to the
+  application theme. For instance, to write a rule targeting whether the theme
+  is overall light or dark, you can use
+
+  .. code:: css
+
+     [data-theme-light="true"] your-ui-class {
+       background-color: white;
+     }
+     [data-theme-light="false"] your-ui-class {
+       background-color: black;
+     }
+
+  The theme name can also be targeted by writing CSS rules for
+  ``data-theme-name``. (`#5078
+  <https://github.com/jupyterlab/jupyterlab/pull/5078>`__)
+* The ``IThemeManager`` interface now exposes a signal for ``themeChanged``,
+  allowing extension authors to react to changes in the theme. Theme extensions
+  must also provide a new boolean property ``isLight``, declaring whether they are
+  broadly light colored. This data allows third-party extensions to react better
+  to the active application theme. (`#5078
+  <https://github.com/jupyterlab/jupyterlab/pull/5078>`__)
+* Added a patch to update the ``uploads`` for each ``FileBrowserModel`` instantly
+  whenever a file upload errors. Previously, the upload that erred was only
+  being removed from uploads upon an update. This would allow the status bar
+  component and other extensions that use the ``FileBrowserModel`` to be more
+  precise. (`#5077 <https://github.com/jupyterlab/jupyterlab/pull/5077>`__)
+* Cell IDs are now passed in the shell message as part of the cell metadata when
+  a cell is executed. This helps in developing reactive kernels. (`#5033
+  <https://github.com/jupyterlab/jupyterlab/pull/5033>`__)
+* The IDs of all deleted cells since the last run cell are now passed as part of
+  the cell metadata on execution. The IDs of deleted cells since the last run
+  cell are stored as ``deletedCells`` in ``NotebookModel``. This helps in
+  developing reactive kernels. (`#5037
+  <https://github.com/jupyterlab/jupyterlab/pull/5037>`__)
+* The ``ToolbarButton`` in ``apputils`` has been refactored with an API change
+  and now uses a React component ``ToolbarButtonComponent``  to render its
+  children. It is now a ``div`` with a single ``button`` child, which in turn as
+  two ``span`` elements for an icon and text label. Extensions that were using
+  the ``className`` options should rename it as ``iconClassName``. The
+  ``className`` options still exists, but it used as the CSS class on the
+  ``button`` element itself. The API changes were done to accommodate styling
+  changes to the button. (`#5117
+  <https://github.com/jupyterlab/jupyterlab/pull/5117>`__)
+* The ``Toolbar.createFromCommand`` function has been replaced by a dedicated
+  ``ToolbarButton`` subclass called ``CommandToolbarButton``, that wraps a similarly
+  named React component. (`#5117
+  <https://github.com/jupyterlab/jupyterlab/pull/5117>`__)
+* The design and styling of the right and left sidebars tabs has been improved
+  to address `#5054 <https://github.com/jupyterlab/jupyterlab/issues/50>`__.
+  We are now using icons to render tabs for the extensions we ship with
+  JupyterLab and extension authors are encouraged to do the same (text labels
+  still work). Icon based tabs can be used by removing ``widget.caption`` and
+  adding ``widget.iconClass = '<youriconclass> jp-SideBar-tabIcon';``. (`#5117
+  <https://github.com/jupyterlab/jupyterlab/pull/5117>`__)
+* The style of buttons in JupyterLab has been updated to a borderless design.
+  (`#5117 <https://github.com/jupyterlab/jupyterlab/pull/5117>`__)
+* A new series of helper CSS classes for stying SVG-based icons at different
+  sizes has been added: ``jp-Icon``, ``jp-Icon-16``, ``jp-Icon-18``, ``jp-Icon-20``.
+* The rank of the default sidebar widget has been updated. The main change is
+  giving the extension manager a rank of ``1000`` so that it appears at the end of
+  the default items.
+* Python 3.5+ is now required to use JupyterLab.  Python 2 kernels can still be
+  run within JupyterLab.  (`#5119
+  <https://github.com/jupyterlab/jupyterlab/pull/5119>`__)
+* JupyterLab now uses ``yarn 1.9.4`` (aliased as ``jlpm``), which now allows uses to
+  use Node 10+.  (`#5121
+  <https://github.com/jupyterlab/jupyterlab/pull/5121>`__)
+* Clean up handling of ``baseUrl`` and ``wsURL`` for ``PageConfig`` and
+  ``ServerConnection``.  (`#5111
+  <https://github.com/jupyterlab/jupyterlab/pull/5111>`__)
+
+
+Other Changes
+^^^^^^^^^^^^^
+* Added the pipe (``|``) character as a CSV delimiter option. (`#5112
+  <https://github.com/jupyterlab/jupyterlab/pull/5112>`__)
+* Added ``Open From Path...`` to top level ``File`` menu. (`#5108
+  <https://github.com/jupyterlab/jupyterlab/pull/5108>`__)
+* Added a ``saveState`` signal to the document context object. (`#5096
+  <https://github.com/jupyterlab/jupyterlab/pull/5096>`__)
+* Added "Copy Download Link" to context menu for files.  (`#5089
+  <https://github.com/jupyterlab/jupyterlab/pull/5089>`__)
+* Extensions marked as ``deprecated`` are no longer shown in the extension
+  manager.  (`#5058 <https://github.com/jupyterlab/jupyterlab/pull/5058>`__)
+* Remove ``In`` and ``Out`` text from cell prompts. Shrunk the prompt width from
+  90px to 64px. In the light theme, set the prompt colors of executed console
+  cells to active prompt colors and reduced their opacity to 0.5. In the dark
+  theme, set the prompt colors of executed console cells to active prompt colors
+  and set their opacity to 1. (`#5097
+  <https://github.com/jupyterlab/jupyterlab/pull/5097>`__ and `#5130
+  <https://github.com/jupyterlab/jupyterlab/pull/5130>`__)
+
+
+Bug Fixes
+^^^^^^^^^
+* Fixed a bug in the rendering of the "New Notebook" item of the command
+  palette. (`#5079 <https://github.com/jupyterlab/jupyterlab/pull/5079>`__)
+* We only create the extension manager widget if it is enabled. This prevents
+  unnecessary network requests to ``npmjs.com``.
+  (`#5075 <https://github.com/jupyterlab/jupyterlab/pull/5075>`__)
+* The ``running`` panel now shows the running sessions at startup.  (`#5118
+  <https://github.com/jupyterlab/jupyterlab/pull/5118>`__)
+* Double clicking a file in the file browser always opens it rather than
+  sometimes selecting it for a rename.  (`#5101
+  <https://github.com/jupyterlab/jupyterlab/pull/5101>`__)
+
+
 `v0.33.0 <https://github.com/jupyterlab/jupyterlab/releases/tag/v0.33.0>`__
 ---------------------------------------------------------------------------
 
@@ -225,7 +429,7 @@ Changes for developers
    widget for a markdown file is a text editor, but the default rendered
    widget is the markdown viewer.
    (`#4692 <https://github.com/jupyterlab/jupyterlab/pull/4692>`__)
--  Add new workspace REST endpoints to ``jupyterlab_launcher`` and make
+-  Add new workspace REST endpoints to ``jupyterlab_server`` and make
    them available in ``@jupyterlab/services``.
    (`#4841 <https://github.com/jupyterlab/jupyterlab/pull/4841>`__)
 -  Documents created with a mimerenderer extension can now be accessed
@@ -339,7 +543,7 @@ Changes in the JupyterLab code infrastructure include:
    We will upgrade yarn, with NodeJS version 10 support, when a `bug in
    yarn <https://github.com/yarnpkg/yarn/issues/5935>`__ is fixed.
    (`#4804 <https://github.com/jupyterlab/jupyterlab/pull/4804>`__)
--  Various process utilities were moved to ``jupyterlab_launcher``.
+-  Various process utilities were moved to ``jupyterlab_server``.
    (`#4696 <https://github.com/jupyterlab/jupyterlab/pull/4696>`__)
 
 Other fixes

@@ -7,7 +7,7 @@ import { Message, MessageLoop } from '@phosphor/messaging';
 
 import { Widget } from '@phosphor/widgets';
 
-import { IClientSession } from '@jupyterlab/apputils';
+import { ClientSession, IClientSession } from '@jupyterlab/apputils';
 
 import { CodeEditor, CodeEditorWrapper } from '@jupyterlab/codeeditor';
 
@@ -24,7 +24,7 @@ import {
   CellFooter,
   CellHeader,
   InputArea
-} from '@jupyterlab/cells';
+} from '@jupyterlab/cells/src';
 
 import { OutputArea, OutputPrompt } from '@jupyterlab/outputarea';
 
@@ -182,6 +182,16 @@ describe('cells/widget', () => {
         widget.readOnly = true;
         await framePromise();
         expect(widget.methods).to.deep.equal(['onUpdateRequest']);
+      });
+
+      it('should reflect model metadata', () => {
+        model.metadata.set('editable', false);
+
+        const widget = new Cell({
+          model,
+          contentFactory
+        });
+        expect(widget.readOnly).to.equal(false);
       });
     });
 
@@ -425,7 +435,7 @@ describe('cells/widget', () => {
 
       beforeEach(async () => {
         session = await createClientSession();
-        await session.initialize();
+        await (session as ClientSession).initialize();
         await session.kernel.ready;
       });
 
@@ -433,9 +443,13 @@ describe('cells/widget', () => {
         return session.shutdown();
       });
 
-      it('should fulfill a promise if there is no code to execute', () => {
+      it('should fulfill a promise if there is no code to execute', async () => {
         const widget = new CodeCell({ model, rendermime, contentFactory });
-        return CodeCell.execute(widget, session);
+        try {
+          await CodeCell.execute(widget, session);
+        } catch (error) {
+          throw error;
+        }
       });
 
       it('should fulfill a promise if there is code to execute', async () => {
@@ -495,14 +509,31 @@ describe('cells/widget', () => {
           rendermime,
           contentFactory
         });
+        widget.rendered = false;
         Widget.attach(widget, document.body);
-        widget.rendered = false;
-        widget.rendered = false;
+
+        // Count how many update requests were processed.
         await framePromise();
-        const updates = widget.methods.filter(method => {
+        const original = widget.methods.filter(method => {
           return method === 'onUpdateRequest';
-        });
-        expect(updates).to.have.length(1);
+        }).length;
+
+        widget.rendered = false;
+        widget.rendered = false;
+        widget.rendered = false;
+        widget.rendered = false;
+
+        // Count how many update requests were processed
+        await framePromise();
+        const delta =
+          widget.methods.filter(method => {
+            return method === 'onUpdateRequest';
+          }).length - original;
+
+        // Make sure every single `rendered` toggle did not trigger an update.
+        expect(delta)
+          .to.be.gte(0)
+          .and.lte(1);
         widget.dispose();
       });
     });
