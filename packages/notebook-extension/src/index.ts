@@ -50,12 +50,16 @@ import {
   NotebookPanel,
   NotebookTracker,
   NotebookWidgetFactory,
-  StaticNotebook
+  StaticNotebook,
+  CommandEditStatus,
+  NotebookTrustStatus
 } from '@jupyterlab/notebook';
 
 import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 
 import { ServiceManager } from '@jupyterlab/services';
+
+import { IStatusBar } from '@jupyterlab/statusbar';
 
 import { ReadonlyJSONObject, JSONValue } from '@phosphor/coreutils';
 
@@ -282,9 +286,77 @@ const tools: JupyterLabPlugin<ICellTools> = {
 };
 
 /**
+ * A plugin providing a CommandEdit status item.
+ */
+export const commandEditItem: JupyterLabPlugin<void> = {
+  id: '@jupyterlab/notebook-extension:mode-status',
+  autoStart: true,
+  requires: [IStatusBar, INotebookTracker],
+  activate: (
+    app: JupyterLab,
+    statusBar: IStatusBar,
+    tracker: INotebookTracker
+  ) => {
+    const item = new CommandEditStatus();
+
+    // Keep the status item up-to-date with the current notebook.
+    tracker.currentChanged.connect(() => {
+      const current = tracker.currentWidget;
+      item.model.notebook = current.content;
+    });
+
+    statusBar.registerStatusItem('command-edit-item', item, {
+      align: 'right',
+      rank: 4,
+      isActive: () =>
+        app.shell.currentWidget &&
+        tracker.currentWidget &&
+        app.shell.currentWidget === tracker.currentWidget
+    });
+  }
+};
+
+/**
+ * A plugin that adds a notebook trust status item to the status bar.
+ */
+export const notebookTrustItem: JupyterLabPlugin<void> = {
+  id: '@jupyterlab/notebook-extension:trust-status',
+  autoStart: true,
+  requires: [IStatusBar, INotebookTracker],
+  activate: (
+    app: JupyterLab,
+    statusBar: IStatusBar,
+    tracker: INotebookTracker
+  ) => {
+    const item = new NotebookTrustStatus();
+
+    // Keep the status item up-to-date with the current notebook.
+    tracker.currentChanged.connect(() => {
+      const current = tracker.currentWidget;
+      item.model.notebook = current.content;
+    });
+
+    statusBar.registerStatusItem('notebook-trust-item', item, {
+      align: 'right',
+      rank: 3,
+      isActive: () =>
+        app.shell.currentWidget &&
+        tracker.currentWidget &&
+        app.shell.currentWidget === tracker.currentWidget
+    });
+  }
+};
+
+/**
  * Export the plugins as default.
  */
-const plugins: JupyterLabPlugin<any>[] = [factory, trackerPlugin, tools];
+const plugins: JupyterLabPlugin<any>[] = [
+  factory,
+  trackerPlugin,
+  tools,
+  commandEditItem,
+  notebookTrustItem
+];
 export default plugins;
 
 /**

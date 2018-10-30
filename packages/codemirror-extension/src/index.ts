@@ -11,13 +11,20 @@ import { IMainMenu, IEditMenu } from '@jupyterlab/mainmenu';
 
 import { IEditorServices } from '@jupyterlab/codeeditor';
 
-import { editorServices, CodeMirrorEditor, Mode } from '@jupyterlab/codemirror';
+import {
+  editorServices,
+  EditorSyntaxStatus,
+  CodeMirrorEditor,
+  Mode
+} from '@jupyterlab/codemirror';
 
 import { ISettingRegistry, IStateDB } from '@jupyterlab/coreutils';
 
 import { IDocumentWidget } from '@jupyterlab/docregistry';
 
 import { IEditorTracker, FileEditor } from '@jupyterlab/fileeditor';
+
+import { IStatusBar } from '@jupyterlab/statusbar';
 
 /**
  * The command IDs used by the codemirror plugin.
@@ -56,9 +63,45 @@ const commands: JupyterLabPlugin<void> = {
 };
 
 /**
+ * The JupyterLab plugin for the EditorSyntax status item.
+ */
+export const editorSyntaxStatus: JupyterLabPlugin<void> = {
+  id: '@jupyterlab/codemirror-extension:editor-syntax-status',
+  autoStart: true,
+  requires: [IStatusBar, IEditorTracker],
+  activate: (
+    app: JupyterLab,
+    statusBar: IStatusBar,
+    tracker: IEditorTracker
+  ) => {
+    let item = new EditorSyntaxStatus({ commands: app.commands });
+    app.shell.currentChanged.connect(() => {
+      const current = app.shell.currentWidget;
+      if (current && tracker.has(current)) {
+        item.model.editor = (current as IDocumentWidget<
+          FileEditor
+        >).content.editor;
+      }
+    });
+    statusBar.registerStatusItem('editor-syntax-item', item, {
+      align: 'left',
+      rank: 0,
+      isActive: () =>
+        app.shell.currentWidget &&
+        tracker.currentWidget &&
+        app.shell.currentWidget === tracker.currentWidget
+    });
+  }
+};
+
+/**
  * Export the plugins as default.
  */
-const plugins: JupyterLabPlugin<any>[] = [commands, services];
+const plugins: JupyterLabPlugin<any>[] = [
+  commands,
+  services,
+  editorSyntaxStatus
+];
 export default plugins;
 
 /**
@@ -327,10 +370,6 @@ function activateEditorCommands(
   // Add go to line capabilities to the edit menu.
   mainMenu.editMenu.goToLiners.add({
     tracker,
-    find: (widget: IDocumentWidget<FileEditor>) => {
-      let editor = widget.content.editor as CodeMirrorEditor;
-      editor.execCommand('jumpToLine');
-    },
     goToLine: (widget: IDocumentWidget<FileEditor>) => {
       let editor = widget.content.editor as CodeMirrorEditor;
       editor.execCommand('jumpToLine');
