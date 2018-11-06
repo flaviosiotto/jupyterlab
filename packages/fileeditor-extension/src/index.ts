@@ -111,7 +111,7 @@ const plugin: JupyterLabPlugin<IEditorTracker> = {
  * switch tabs vs spaces and tab widths for text editors.
  */
 export const tabSpaceStatus: JupyterLabPlugin<void> = {
-  id: '@jupyterlab/fileeditor-extension:tab-space-item',
+  id: '@jupyterlab/fileeditor-extension:tab-space-status',
   autoStart: true,
   requires: [IStatusBar, IEditorTracker, ISettingRegistry],
   activate: (
@@ -161,15 +161,20 @@ export const tabSpaceStatus: JupyterLabPlugin<void> = {
     });
 
     // Add the status item.
-    statusBar.registerStatusItem('tab-space-item', item, {
-      align: 'right',
-      rank: 1,
-      isActive: () => {
-        return (
-          app.shell.currentWidget && editorTracker.has(app.shell.currentWidget)
-        );
+    statusBar.registerStatusItem(
+      '@jupyterlab/fileeditor-extension:tab-space-status',
+      {
+        item,
+        align: 'right',
+        rank: 1,
+        isActive: () => {
+          return (
+            app.shell.currentWidget &&
+            editorTracker.has(app.shell.currentWidget)
+          );
+        }
       }
-    });
+    );
   }
 };
 
@@ -312,7 +317,6 @@ function activate(
           console.error(`Failed to set ${id}: ${reason.message}`);
         });
     },
-    isEnabled,
     label: args => args['name'] as string
   });
 
@@ -361,7 +365,6 @@ function activate(
           console.error(`Failed to set ${id}: ${reason.message}`);
         });
     },
-    isEnabled,
     isToggled: args => {
       const insertSpaces = !!args['insertSpaces'];
       const size = (args['size'] as number) || 4;
@@ -393,7 +396,6 @@ function activate(
         });
     },
     label: 'Auto Close Brackets for Text Editor',
-    isEnabled,
     isToggled: () => config.autoClosingBrackets
   });
 
